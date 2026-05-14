@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QTableWidget,
     QTableWidgetItem, QHeaderView, QHBoxLayout, QInputDialog, QMessageBox, QDialog,
     QListWidget, QListWidgetItem, QDialogButtonBox, QComboBox, QLineEdit, QGridLayout,
-    QPushButton, QTableView, 
+    QPushButton, QTableView, QCheckBox, QSpinBox, QScrollArea
 )
 from PyQt5.QtCore import QMimeData, Qt, pyqtSignal, QModelIndex
 from PyQt5.QtGui import QDrag, QPixmap, QStandardItemModel, QStandardItem
@@ -328,29 +328,78 @@ class subProgramSelectionWindow(QDialog):
     def __init__(self):
         super().__init__(None)
         self.selectedPrograms = []
-        self.setGeometry(800, 300, 250, 600) # (x, y, width, height)
+        self.setGeometry(800, 300, 300, 600)
         self.setWindowTitle("PROGRAMS LIST")
         self.layout = QVBoxLayout()
-        self.listWidget = QListWidget()
+
+        # Widget con scroll para la lista de programas
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollWidget = QWidget()
+        self.scrollLayout = QVBoxLayout(self.scrollWidget)
+        self.scrollLayout.setSpacing(4)
+
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
-        c.execute(f"SELECT program_id FROM programs ORDER BY program_id")
+        c.execute("SELECT program_id FROM programs ORDER BY program_id")
         self.allPrograms = c.fetchall()
         c.close()
-        for i in range(len(self.allPrograms)):
-            item = QListWidgetItem(f"{self.allPrograms[i][0]}")
-            self.listWidget.addItem(item)
-        self.listWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.layout.addWidget(self.listWidget)
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+
+        # Diccionario para guardar {program_id: QSpinBox}
+        self.spinBoxes = {}
+        self.checkBoxes = {}
+
+        for program in self.allPrograms:
+            program_id = program[0]
+
+            rowWidget = QWidget()
+            rowLayout = QHBoxLayout(rowWidget)
+            rowLayout.setContentsMargins(4, 2, 4, 2)
+
+            # Checkbox para seleccionar el programa
+            checkBox = QCheckBox(str(program_id))
+            checkBox.setMinimumWidth(150)
+            self.checkBoxes[program_id] = checkBox
+
+            # Spinner para la cantidad (empieza en 0, rango 0-99)
+            spinBox = QSpinBox()
+            spinBox.setMinimum(0)
+            spinBox.setMaximum(99)
+            spinBox.setValue(0)
+            spinBox.setFixedWidth(60)
+            spinBox.setEnabled(False)  # Deshabilitado hasta que se seleccione
+            self.spinBoxes[program_id] = spinBox
+
+            # Habilitar/deshabilitar spinner al marcar el checkbox
+            checkBox.toggled.connect(lambda checked, sb=spinBox: (
+                sb.setEnabled(checked),
+                sb.setValue(1 if checked else 0)
+            ))
+
+            rowLayout.addWidget(checkBox)
+            rowLayout.addStretch()
+            rowLayout.addWidget(spinBox)
+            self.scrollLayout.addWidget(rowWidget)
+
+        self.scrollLayout.addStretch()
+        self.scrollArea.setWidget(self.scrollWidget)
+        self.layout.addWidget(self.scrollArea)
+
+        self.buttonBox = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
         self.buttonBox.accepted.connect(self.getSelectedPrograms)
         self.buttonBox.rejected.connect(self.close)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
+
     def getSelectedPrograms(self):
         self.selectedPrograms = []
-        for item in self.listWidget.selectedItems():
-            self.selectedPrograms.append(item.text())
+        for program_id, checkBox in self.checkBoxes.items():
+            if checkBox.isChecked():
+                quantity = self.spinBoxes[program_id].value()
+                for _ in range(quantity):
+                    self.selectedPrograms.append(str(program_id))
         self.accept()
             
 
