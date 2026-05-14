@@ -1,0 +1,268 @@
+import time
+import threading
+from opcua import Client
+import queue
+UPDATE_TIME = 5
+class Robot:
+    def __init__(self, ip, port, name):
+        self.ip = ip
+        self.port = port
+        self.name = name
+        self.client = Client(f"opc.tcp://{self.ip}:{self.port}")
+        self._thread_started = False
+        self.client = None
+        self.connected = False
+        self.robot = None
+
+        self.inputs = []
+        self.outputs = []
+        self.floats = []
+        self.floatInputs = []
+        self.floatOutputs = []
+        self.hanger_pos_ok = []
+
+        self.heartbeat = None
+        self.last_hb = None
+        self.timeout_counter = 0
+
+        self.lock = threading.Lock()
+        self.write_queue = queue.Queue()
+
+        self.reader_values = [False]*16
+        self.reader_float = [0.0]*8
+        self.writer_float = [0.0]*8
+
+        # -------- LinuxCNC Status Flags --------
+        self.machine_ready= False
+        self.program_running = False
+        self.program_paused = False
+        self.program_idle = False
+        self.program_loaded = False
+        self.machine_on = False
+        self.home_all = False
+        self.alarm = False
+        self.hangerA = 0
+        self.hangerB = 0
+        self.hangerC = 0
+        self.hangerD = 0
+        self.convAOk = False
+        self.convBOk = False
+        self.convCOk = False
+        self.convDOk = False
+
+
+    def connect(self):
+        try:
+            if self.client is None:
+                self.client = Client(f"opc.tcp://{self.ip}:{self.port}")
+                self.client.session_timeout = 10000
+
+            # Try a lightweight operation to confirm connection
+            if not self.connected:
+                self.client.connect()
+
+            obj = self.client.get_objects_node()
+            self.robot = obj.get_child([f"2:{self.name}"])
+            self.classify()
+
+            self.connected = True
+
+        except Exception as e:
+            self.connected = False
+            print(f"ERROR ROBOT {self.name}: {e}")
+
+    def classify(self):
+        self._browse(self.robot)
+
+    def _browse(self, node):
+        self.inputs = []
+        self.outputs = []
+        self.floats = []
+        self.floatInputs = []
+        self.floatOutputs = []
+        for child in node.get_children():
+            try:
+                name = child.get_browse_name().Name.lower()
+            except:
+                name = ""
+
+            try:
+                value = child.get_value()
+                dtype = type(value)
+
+                # ---- Classification ----
+                if "heartbeat" in name:
+                    self.heartbeat = child
+
+                elif isinstance(value, bool):
+                    if "output" in name:
+                        self.outputs.append(child)
+                    else:
+                        self.inputs.append(child)
+
+                elif isinstance(value, float):
+                    self.floats.append(child)
+                    if "output" in name:
+                        self.floatOutputs.append(child)
+                    else:
+                        self.floatInputs.append(child)
+
+                # Debug print
+                #print(f"{name} | {child.nodeid} | {value} | {dtype}")
+
+            except:
+                # Not a variable node → keep browsing
+                self._browse(child)
+
+
+    
+    def start_connection_loop(self):
+        if getattr(self, "_thread_started", False) and getattr(self, "conn_thread") and self.conn_thread.is_alive():
+            return  # already started
+        self._thread_started = True
+        self.conn_thread = threading.Thread(target=self._connection_loop, daemon=True)
+        self.conn_thread.start()
+
+    def _connection_loop(self):
+        self.isListening = True
+
+        while self.isListening:
+            if not self.connected:
+                try:
+                    self.connect()
+                except:
+                    time.sleep(1)
+                    continue
+
+            if self.connected:
+                try:
+                    # Only fetch the values, NOT the nodes
+                    with self.lock:
+                        self.classify()
+                        self.reader_values = [inp.get_value() for inp in self.inputs]
+                        self.float_values = [fl.get_value() for fl in self.floats]
+                        self.reader_float = [fl.get_value() for fl in self.floatInputs]
+                        self.writer_float = [fl.get_value() for fl in self.floatOutputs]
+                    # Update robot status flags
+                    self._update_status_flags()
+                    # if self.name == "Robot2":
+                    #     print(f"NAME: {self.name} : CONV C: {self.convCOk}")
+                    #     print(f"NAME: {self.name} : CONV D: {self.convDOk}")
+
+                except Exception:
+                    self.connected = False
+                    try:
+                        self.client.disconnect()
+                    except:
+                        pass
+
+            time.sleep(UPDATE_TIME)
+
+    def stopListening(self):
+        if self.client:
+            self.client.disconnect()
+        self.isListening = False
+        if hasattr(self, "conn_thread") and self.conn_thread.is_alive():
+            self.conn_thread.join()  # Waits for thread to finish safely
+        print("Cycle stopped and thread finished")
+        
+
+
+    # -----------------------------------------
+    # Decode machine states
+    # -----------------------------------------
+    def _update_status_flags(self):
+
+        v = self.reader_values
+        #print(f"LEN: {len(self.reader_float)}")
+        print(f"{self.name}: INPUT VALUES {self.reader_values}")
+        print(f"{self.name}: FLOAT INPUT VALUES: {self.reader_float}")
+        if len(v) >= 8:
+
+            self.machine_ready = v[0]
+            self.program_running = v[1]
+            self.program_paused = v[2]
+            self.program_idle = v[3]
+            self.program_loaded = v[4]
+            self.machine_on = v[5]
+            self.home_all = v[6]
+            self.hanger_pos_ok = [v[7], v[8]]
+            if self.name == "Robot1":
+                self.convAOk = v[7]
+                self.convBOk = v[8] 
+                self.fromConvA = v[9]
+                self.fromConvB = v[10]
+                self.toConvA = v[11]
+                self.toConvB = v[12]
+                self.hangerA = self.reader_float[0]
+                self.hangerB = self.reader_float[2]
+            else:
+                self.convCOk = v[7]
+                self.convDOk = v[8]
+                self.fromConvB = v[9]
+                self.fromConvC = v[10]
+                self.fromConvD = v[11]
+                self.toConvB = v[12]
+                self.toConvC = v[13]
+                self.toConvD = v[14]
+                self.hangerC = self.reader_float[0]
+                self.hangerD = self.reader_float[2]
+            #9 viene del conveyor a
+            #10 from con b
+            #11 to conv a
+            #12 to conv b
+
+            #Robto 2
+            #9 from conveyor B
+            #10 from conveyor C
+            #11 from conv D 
+            #12 to conv B
+            #13 to conv C
+            #14 to conv D
+
+
+    # -----------------------------------------
+    # Write outputs
+    # -----------------------------------------
+    def set_output(self, index, value):
+        self.write_queue.put((index, value))
+
+
+    def set_outputs_batch(self, indices_values):
+
+        for idx, val in indices_values:
+            self.write_queue.put((idx, val))
+
+
+    # -----------------------------------------
+    # Debug helper
+    # -----------------------------------------
+    def print_status(self):
+
+        print(f"\n{self.name} STATUS")
+        print("--------------------")
+        print("Machine Ready:", self.machine_ready)
+        print("Program running:", self.program_running)
+        print("Program paused:", self.program_paused)
+        print("Program idle:", self.program_idle)
+        print("Program Loaded:", self.program_loaded)
+        print("Machine On:", self.machine_on)
+        print("Home All:", self.home_all)
+        #print("Alarm:", self.alarm)
+    def set_float_output(self, index, value):
+        """
+        Set a floating-point output value.
+
+        index: position in self.floatOutputs
+        value: float value to send
+        """
+        if not self.connected:
+            print("Robot not connected")
+            return
+        try:
+            with self.lock:
+                self.floatOutputs[index].set_value(float(value))
+
+        except Exception as e:
+            print(f"Error setting float output {index}: {e}")
+            self.connected = False
