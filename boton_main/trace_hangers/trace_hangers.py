@@ -460,7 +460,7 @@ class TraceHangersWindow(QMainWindow):
             self.queueManager.priority = 2
             print("Robot 2 seleccionado")
 
-#Deberia haber 10 hilos
+#Deberia haber 10 hilosXD
     @Slot(Part, Program)
     def updatePreliminarCharacteristics(self, part:Part, nextProgram:Program):
         self.update_table_signal.emit(
