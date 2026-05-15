@@ -22,6 +22,7 @@ class ProgramQueueManager():
         self.dryingList = []
         self.currentPartRobot1 = None
         self.currentPartRobot2 = None
+        self.priority = 1
         self.isBTaken = 0
         #self.otherRobotNum = 1 if self.robotNum == 2 else 2
         self.updateQueueOfParts()
@@ -100,22 +101,14 @@ class ProgramQueueManager():
             #Si el programa no ha corrido
             if (programa.robot_num == robotNum and programa.state != "WAITING") or \
                 (nextProgram.robot_num == robotNum and programa.state == "WAITING"): #Si le pertenece al robot
-                # if self.currentPartRobot2 and self.currentPartRobot1:
-                #     self.dc.print(f"""R2CONVB: {self.currentPartRobot2.part_id}:{self.currentPartRobot2.getCurrentProgram().current_hanger}{self.currentPartRobot2.getCurrentProgram().current_conveyor} : {self.isInConvB(self.currentPartRobot2)}\n 
-                #     R1CONVB: {self.currentPartRobot1.part_id}:{self.currentPartRobot1.getCurrentProgram().current_hanger}{self.currentPartRobot1.getCurrentProgram().current_conveyor} : {self.isInConvB(self.currentPartRobot1)}""", robotNum)
-                if self.isInConvB(part): #Si el conveyor B le pertenece a este robot o a ninguno
-                    self.dc.print(f"R{robotNum}: PART IS OF CONV B", robotNum)
-                    self.dc.print(f"R{robotNum}: {part.part_id} DIST: {self.getDistance(part)} R2CONVB: {self.isInConvB(self.currentPartRobot2)}  R1CONVB: {self.isInConvB(self.currentPartRobot1)}", robotNum)
-                    if (robotNum == 1 and self.isInConvB(self.currentPartRobot2) == False) or (robotNum == 2 and self.isInConvB(self.currentPartRobot1) == False):
-                        distance = self.getDistance(part)
-                        if shortestDist == None:
-                            shortestDist = distance
-                            highestPriorityIndex = i
-                        elif distance < shortestDist:
-                            shortestDist = distance
-                            highestPriorityIndex = i
-                    else:
-                        self.dc.print(f"R{robotNum}: CONVEYR B WAS TAKEN", robotNum)
+                if self.isInConvB(part) and self.prioridad == robotNum: #Si el conveyor B le pertenece a este robot o a ninguno
+                    distance = self.getDistance(part)
+                    if shortestDist == None:
+                        shortestDist = distance
+                        highestPriorityIndex = i
+                    elif distance < shortestDist:
+                        shortestDist = distance
+                        highestPriorityIndex = i
                 else:
                     distance = self.getDistance(part)
                     self.dc.print(f"R{robotNum}:  {auxPart.part_id} PROGRAM: {programa.program_id} STATE: {programa.state} DIST: {distance}", robotNum)

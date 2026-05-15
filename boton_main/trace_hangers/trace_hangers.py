@@ -46,31 +46,12 @@ class TraceHangersWindow(QMainWindow):
     def __init__(self, robot1:Robot, robot1Loader:RobotLoader, robot2:Robot, robot2Loader:RobotLoader, 
         robot1Coordinator:RobotCoordinator, robot2Coordinator:RobotCoordinator, partsTimer:PartsTimer, queueManager:ProgramQueueManager):
         super().__init__()
+        self.queueManager = queueManager
+
         self.robot1Coordinator = robot1Coordinator
-        self.coordinator1Thread = QThread()
-        self.robot1Coordinator.moveToThread(self.coordinator1Thread)
-        self.coordinator1Thread.started.connect(self.robot1Coordinator.startCycle)
-        self.robot1Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
-        self.robot1Coordinator.programEnded.connect(self.updateTablePart)
-        self.robot1Coordinator.changedPart.connect(self.updateLastPart)
-        self.robot1Coordinator.updateTimeDev.connect(self.updateTimeDev)
-        self.robot1Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
-        self.robot1Coordinator.updateProgramPart.connect(self.updateTablePart)
-        self.robot1Coordinator.startPart.connect(self.startFirstPart)
-        self.robot1Coordinator.noPart.connect(self.clearHighlights)
+        
 
         self.robot2Coordinator = robot2Coordinator
-        self.coordinator2Thread = QThread()
-        self.robot2Coordinator.moveToThread(self.coordinator2Thread)
-        self.coordinator2Thread.started.connect(self.robot2Coordinator.startCycle)
-        self.robot2Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
-        self.robot2Coordinator.programEnded.connect(self.updateTablePart)
-        self.robot2Coordinator.changedPart.connect(self.updateLastPart)
-        self.robot2Coordinator.updateTimeDev.connect(self.updateTimeDev)
-        self.robot2Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
-        self.robot2Coordinator.updateProgramPart.connect(self.updateTablePart)
-        self.robot2Coordinator.startPart.connect(self.startFirstPart)
-        self.robot2Coordinator.noPart.connect(self.clearHighlights)
 
 
         self.timer = partsTimer
@@ -211,7 +192,7 @@ class TraceHangersWindow(QMainWindow):
 
         recordButton = QPushButton("START PROGRAM")
         recordButton.clicked.connect(
-            lambda _:  self.threadStartUpdating()
+            lambda _:  self.startCycle()
         )
         stopBtn = QPushButton("STOP CYCLE")
         stopBtn.clicked.connect(lambda _: self.stopUpdate())
@@ -425,29 +406,58 @@ class TraceHangersWindow(QMainWindow):
                     self.mainTable.setItem(row, column, newItem)
                 break
 
-    def threadStartUpdating(self):
+    def startCycle(self):
         #TODO: SIMPLIFY SIGNALS
         #Inician los coordinadores
-        #TODO: Para volver a poner el robot 1 descomentar las siguientes lineas
-        # self.robot1Coordinator.stop = False
-        # self.coordinator1Thread.start()
+        self.isListening = True
+        self.startRobot1()
+        self.startRobot2()
+        self.startTimer()
 
-
-        self.robot2Coordinator.stop = False
-        self.coordinator2Thread.start()
-
-        
+    def startTimer(self):
         self.timer.stop = False
         self.timer.updateDryingParts()
         self.timer_thread.start()
+
+    def startRobot1(self):
+        self.coordinator1Thread = QThread()
+        self.robot1Coordinator.moveToThread(self.coordinator1Thread)
+        self.coordinator1Thread.started.connect(self.robot1Coordinator.startCycle)
+        self.robot1Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
+        self.robot1Coordinator.programEnded.connect(self.updateTablePart)
+        self.robot1Coordinator.changedPart.connect(self.updateLastPart)
+        self.robot1Coordinator.updateTimeDev.connect(self.updateTimeDev)
+        self.robot1Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
+        self.robot1Coordinator.updateProgramPart.connect(self.updateTablePart)
+        self.robot1Coordinator.startPart.connect(self.startFirstPart)
+        self.robot1Coordinator.noPart.connect(self.clearHighlights)
+        self.robot1Coordinator.stop = False
+        self.coordinator1Thread.start()
+    
+    def startRobot2(self):
+        self.coordinator2Thread = QThread()
+        self.robot2Coordinator.moveToThread(self.coordinator2Thread)
+        self.coordinator2Thread.started.connect(self.robot2Coordinator.startCycle)
+        self.robot2Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
+        self.robot2Coordinator.programEnded.connect(self.updateTablePart)
+        self.robot2Coordinator.changedPart.connect(self.updateLastPart)
+        self.robot2Coordinator.updateTimeDev.connect(self.updateTimeDev)
+        self.robot2Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
+        self.robot2Coordinator.updateProgramPart.connect(self.updateTablePart)
+        self.robot2Coordinator.startPart.connect(self.startFirstPart)
+        self.robot2Coordinator.noPart.connect(self.clearHighlights)
+        self.robot2Coordinator.stop = False
+        self.coordinator2Thread.start()
 
     def on_robot_selected(self):
         print("SEÑAL RECIBIDA")  # ← ¿aparece esto?
         selected = self.robotButtonGroup.checkedId()
         print(f"ID seleccionado: {selected}")
         if selected == 1:
+            self.queueManager.priority = 1
             print("Robot 1 seleccionado")
         elif selected == 2:
+            self.queueManager.priority = 2
             print("Robot 2 seleccionado")
 
 #Deberia haber 10 hilos
@@ -525,40 +535,29 @@ class TraceHangersWindow(QMainWindow):
                     CURDRY_COL,
                     str(currentTime)
                 )
-
-    # def updateDryTimers(self):
-    #     piezasSecandose = dict(self.timer.dryingParts)
-    #     if piezasSecandose:
-    #         for pieza, tiempo in piezasSecandose.items():
-    #             #print(f"Valores: {tiempo}")
-    #             program = pieza.getCurrentProgram()
-    #             if type(tiempo) != int:
-    #                 contador = tiempo[0]
-    #                 self.update_table_signal.emit(
-    #                     pieza.part_id,
-    #                     CURDRY_COL,
-    #                     str(contador)
-    #                 )
-
-    #             self.update_table_signal.emit(
-    #                     pieza.part_id,
-    #                     STATE_COL,
-    #                     str(program.state)
-    #                 )
+ 
     def stopUpdate(self):
         self.isListening = False
-        #TODO: Para volver a poner el robot 1 descomentar las siguientes lineas
-        # self.robot1Coordinator.stopCycle()
-        # self.coordinator1Thread.requestInterruption() # 1. Solicitar alto
-        # self.coordinator1Thread.quit()                # 3. Salir del bucle de eventos
-        # self.coordinator1Thread.wait()
+        self.stopRobot1()
+        self.stopRobot2()
+        self.stopTimer()
+
+    def stopTimer(self):
+        self.timer_thread.requestInterruption() # 1. Solicitar alto
+        self.timer_thread.quit()                # 3. Salir del bucle de eventos
+        self.timer_thread.wait()
+
+    def stopRobot1(self):
+        self.robot1Coordinator.stopCycle()
+        self.coordinator1Thread.requestInterruption() # 1. Solicitar alto
+        self.coordinator1Thread.quit()                # 3. Salir del bucle de eventos
+        self.coordinator1Thread.wait()
+    
+    def stopRobot2(self):
         self.robot2Coordinator.stopCycle()
         self.coordinator2Thread.requestInterruption() # 1. Solicitar alto
         self.coordinator2Thread.quit()                # 3. Salir del bucle de eventos
         self.coordinator2Thread.wait()
-        self.timer_thread.requestInterruption() # 1. Solicitar alto
-        self.timer_thread.quit()                # 3. Salir del bucle de eventos
-        self.timer_thread.wait()
 
     def adjustTableHeight(self, table):
         table.resizeRowsToContents()

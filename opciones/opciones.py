@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 import configparser
 import os
-from opcua import Client
+from opcua import Client,Server
 from db.database import ejecutar_y_respaldar
 import platform
 import subprocess
@@ -223,7 +223,7 @@ class OpcuaConfigWindow(QWidget):
             QMessageBox.warning(self, "ERROR", "FIRST TYPE OPCUA URL")
             return
         try:
-            client = Client(url, timeout=10)
+            client = Client(url, timeout=5)
             client.connect()
             client.disconnect()
             led_label.setStyleSheet(f"color: green; font-size: {FONT_SIZE+4}px;")
@@ -231,6 +231,7 @@ class OpcuaConfigWindow(QWidget):
         except Exception as e:
             led_label.setStyleSheet(f"color: red; font-size: {FONT_SIZE+4}px;")
             QMessageBox.critical(self, "ERROR", f"OPC UA Server NO responde\n{e}")
+            print(f"ERROR OPCIONES: {e}")
 
     def save_urls(self):
         url1 = self.url1_input.text()
@@ -273,7 +274,7 @@ class ProgramWindow(QWidget):
 
     def connect_robot(self, robot, list_widget, num):
         try:
-            aToa = ["001", "021", "004", "024"]
+            aToa = ["001", "021", "004", "024", "003"]
             aTob = ["081", "084"]
             bToc = ["211", "212", "216"]
             cToc = ["251", "252", "254"]
