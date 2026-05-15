@@ -55,6 +55,7 @@ class TablaPartNumbers(QWidget):
 
         self.tabla.setSelectionBehavior(QTableWidget.SelectRows)
         self.tabla.horizontalHeader().setHighlightSections(False)
+        
         layout.addWidget(self.tabla)
 
         self.setLayout(layout)

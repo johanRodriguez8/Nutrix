@@ -27,6 +27,7 @@ class VentanaProgramas(QWidget):
         super().__init__()
         self.setWindowTitle("PROGRAMS")
         self.showMaximized()
+        self.sort_asc = True  # <-- estado del orden
 
         layout = QVBoxLayout()
 
@@ -34,7 +35,7 @@ class VentanaProgramas(QWidget):
         titulo.setAlignment(Qt.AlignCenter)
         titulo.setStyleSheet("font-size: 30px; font-weight: bold; color: #2596be;")
         layout.addWidget(titulo)
-        #Boton 
+
         boton_add = QPushButton("ADD PROGRAM")
         boton_add.setStyleSheet("""
             QPushButton {
@@ -51,28 +52,47 @@ class VentanaProgramas(QWidget):
         layout.addWidget(boton_add)
 
         self.tabla = QTableWidget()
-        fields = [
-            "PROGRAM", "ROBOT", "FROM CONVEYOR", "TO CONVEYOR", "PATH", "EDIT", "DELETE"
-        ]
-        self.tabla.setColumnCount(len(fields))
-        self.tabla.setHorizontalHeaderLabels(fields)
+        self.tabla.setColumnCount(7)
+        self.update_headers()  # <-- headers con flecha
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tabla.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tabla.horizontalHeader().setHighlightSections(False)  # <-- sin azul al hacer click
+        self.tabla.horizontalHeader().sectionClicked.connect(self.on_header_clicked)  # <-- click en header
         layout.addWidget(self.tabla)
 
         self.setLayout(layout)
         self.cargar_datos()
 
+    def update_headers(self):
+        arrow = "▲" if self.sort_asc else "▼"
+        self.tabla.setHorizontalHeaderLabels([
+            f"PROGRAM {arrow}",  # <-- flecha en columna 0
+            "ROBOT", "FROM CONVEYOR", "TO CONVEYOR", "PATH", "EDIT", "DELETE"
+        ])
+
+    def on_header_clicked(self, column):
+        if column == 0:  # solo columna PROGRAM
+            self.sort_asc = not self.sort_asc
+            self.update_headers()
+            self.cargar_datos()
+
     def cargar_datos(self):
+        self.tabla.hide()  # <-- oculta mientras carga
+
+        order = "ASC" if self.sort_asc else "DESC"
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
-        c.execute("SELECT program_id, path, robot_num, conveyor_start, conveyor_end FROM programs ORDER BY program_id;")
+        c.execute(f"""
+            SELECT program_id, path, robot_num, conveyor_start, conveyor_end 
+            FROM programs 
+            ORDER BY program_id {order}
+        """)
         filas = c.fetchall()
         conn.close()
 
         self.tabla.setRowCount(len(filas))
 
-        for r, (program_id, program_path,robot, conveyor_start, conveyor_end) in enumerate(filas):
+        for r, (program_id, program_path, robot, conveyor_start, conveyor_end) in enumerate(filas):
             self.tabla.setRowHeight(r, FONT_SIZE*2+10)
             id_item = QTableWidgetItem(str(program_id))
             path_item = QTableWidgetItem(str(program_path))
@@ -80,8 +100,8 @@ class VentanaProgramas(QWidget):
             start_item = QTableWidgetItem(str(conveyor_start))
             end_item = QTableWidgetItem(str(conveyor_end))
             for it in (id_item, path_item, robot_item, start_item, end_item):
-                if it.text() != None and it.text() != "" and it.text() != "None":
-                    it.setBackground(QtGui.QColor("#c8f7c5" ))
+                if it.text() not in (None, "", "None"):
+                    it.setBackground(QtGui.QColor("#c8f7c5"))
                     it.setFlags(it.flags() & ~Qt.ItemIsEditable)
                     it.setTextAlignment(Qt.AlignCenter)
                     font = it.font()
@@ -94,17 +114,20 @@ class VentanaProgramas(QWidget):
             self.tabla.setItem(r, 2, start_item)
             self.tabla.setItem(r, 3, end_item)
             self.tabla.setItem(r, 4, path_item)
-            #Edit button
+
+            self.tabla.setSelectionBehavior(QTableWidget.SelectRows)
+            self.tabla.horizontalHeader().setHighlightSections(False)
+
             btn_edit = QPushButton("EDIT")
             font.setPointSize(FONT_SIZE)
             btn_edit.setFont(font)
             btn_edit.setStyleSheet("""
-                    QPushButton {
-                        background-color: #6c757d;
-                        color: white; font-weight: bold; padding: 6px; border-radius: 6px;
-                    }
-                    QPushButton:hover { background-color: #5a6268; }
-                """)
+                QPushButton {
+                    background-color: #6c757d;
+                    color: white; font-weight: bold; padding: 6px; border-radius: 6px;
+                }
+                QPushButton:hover { background-color: #5a6268; }
+            """)
             btn_edit.clicked.connect(lambda _, id=id_item.text(): self.editProgram(id))
             cell_edit = QWidget()
             lay_d = QHBoxLayout(cell_edit)
@@ -113,17 +136,17 @@ class VentanaProgramas(QWidget):
             btn_edit.setMinimumWidth(LEN_SIZE)
             lay_d.addWidget(btn_edit)
             self.tabla.setCellWidget(r, 5, cell_edit)
-            #Delete button
+
             btn_delete = QPushButton("DELETE")
             font.setPointSize(FONT_SIZE)
             btn_delete.setFont(font)
             btn_delete.setStyleSheet("""
-                    QPushButton {
-                        background-color: #d9534f;
-                        color: white; font-weight: bold; padding: 6px; border-radius: 6px;
-                    }
-                    QPushButton:hover { background-color: #c9302c; }
-                """)
+                QPushButton {
+                    background-color: #d9534f;
+                    color: white; font-weight: bold; padding: 6px; border-radius: 6px;
+                }
+                QPushButton:hover { background-color: #c9302c; }
+            """)
             btn_delete.clicked.connect(lambda _, id=id_item.text(): self.deleteProgram(id))
             cell_delete = QWidget()
             lay_d = QHBoxLayout(cell_delete)
@@ -132,23 +155,27 @@ class VentanaProgramas(QWidget):
             btn_delete.setMinimumWidth(LEN_SIZE)
             lay_d.addWidget(btn_delete)
             self.tabla.setCellWidget(r, 6, cell_delete)
+
+        self.tabla.show()  
+
     def addProgram(self):
-        #texto, ok = QInputDialog.getText(self, "ADD PART NUMBER", "Ingresa el nuevo PART NUMBER:")
         pid = "000"
         program_path = "ADD PATH"
         robot = "1"
         dialogo = self.tableInputDialog(pid, program_path, robot)
         dialogo.exec()
         self.cargar_datos()
+
     def editProgram(self, program_id):
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
         c.execute("SELECT program_id, path, robot_num FROM programs WHERE program_id=?", (program_id,))
         filas = c.fetchall()
         conn.close()
-        dialogo = self.tableInputDialog(filas[0][0], filas[0][1], filas[0][2] )
+        dialogo = self.tableInputDialog(filas[0][0], filas[0][1], filas[0][2])
         dialogo.exec()
         self.cargar_datos()
+
     def deleteProgram(self, program_id):
         resp = QMessageBox.question(self, "DELETE PART NUMBER",
                                     f"ARE YOU SURE TO DELETE PROGRAM '{program_id}'? THIS ACTION CAN NOT BE UNDONE.",
@@ -158,6 +185,8 @@ class VentanaProgramas(QWidget):
                 "DELETE FROM programs WHERE program_id=?", (program_id,)
             )
             self.cargar_datos()
+
+    # tableInputDialog y SubVentanaProgramas sin cambios...
 
     class tableInputDialog(QDialog):
         def __init__(self, program_id, program_path, robot):
