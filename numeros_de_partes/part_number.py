@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QHBoxLayout, QMessageBox, QFileDialog, QInputDialog, QDialog,
-    QComboBox, QLineEdit, QDialogButtonBox, QPushButton, QGridLayout
+    QComboBox, QLineEdit, QDialogButtonBox, QPushButton, QGridLayout,QTextEdit, QScrollArea
 )
 from PyQt5.QtCore import (Qt, QEvent)
 from PyQt5 import QtGui
@@ -56,6 +56,54 @@ class TablaPartNumbers(QWidget):
         layout.addWidget(self.tabla)
 
         self.setLayout(layout)
+        self.cargar_datos()
+
+        boton_bulk = QPushButton("BULK IMPORT")
+        boton_bulk.clicked.connect(self.bulkImport)
+
+        boton_format = QPushButton("FORMAT PART NUMBERS")
+        boton_format.clicked.connect(self.formatPartNumbers)
+        #layout.addWidget(boton_format)
+        #layout.addWidget(boton_bulk)
+
+    def formatPartNumbers(self):
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT part_num, sequence_id FROM partNumbers;")
+        filas = cur.fetchall()
+        conn.close()
+
+        to_update = []
+        for part, seq in filas:
+            clean_part = part.replace('"', '').replace("'", '').replace(',', '')
+            clean_seq  = seq.replace('"', '').replace("'", '').replace(',', '')
+            if clean_part != part or clean_seq != seq:
+                to_update.append((clean_part, clean_seq, part))
+
+        if not to_update:
+            QMessageBox.information(self, "FORMAT", "No records need formatting.")
+            return
+
+        resp = QMessageBox.question(
+            self, "FORMAT PART NUMBERS",
+            f"{len(to_update)} records will be cleaned:\n"
+            + "\n".join(f"{original} → {new}" for new, _, original in to_update[:10])
+            + ("\n..." if len(to_update) > 10 else ""),
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if resp == QMessageBox.Yes:
+            for clean_part, clean_seq, original in to_update:
+                ejecutar_y_respaldar(
+                    "UPDATE partNumbers SET part_num=?, sequence_id=? WHERE part_num=?",
+                    (clean_part, clean_seq, original)
+                )
+            self.cargar_datos()
+            QMessageBox.information(self, "SUCCESS", f"✅ {len(to_update)} records cleaned.")
+
+    # Y el método:
+    def bulkImport(self):
+        win = BulkImportWindow()
+        win.exec()
         self.cargar_datos()
 
 
@@ -164,7 +212,7 @@ class addPartWindow(QDialog):
         if newPartId != -1:
             self.okButton.clicked.connect(self.editPart)
         else:
-            self.okButton.clicked.connect(self.addPartToTable)
+            self.okButton.clicked.connect(self.add_part_to_table)
         self.cancelButton.clicked.connect(self.close)
 
         self.okButton.setAutoDefault(False)
@@ -180,7 +228,8 @@ class addPartWindow(QDialog):
         self.layout.addWidget(self.cancelButton, 3, 1)
         self.layout.addWidget(self.okButton, 3, 2)
         self.setLayout(self.layout)
-    def addPartToTable(self):
+
+    def add_part_to_table(self):
         sequence = self.sequenceId.currentText()
         part = self.partId.text()
         if self.validation(part):
@@ -231,6 +280,7 @@ class addPartWindow(QDialog):
             return
         else:
             self.okButton.click()
+            print('escaneado jeje')
 
     
 
@@ -304,6 +354,94 @@ class ScanLineEdit(QLineEdit):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
             # NO hacer submit
+
             self.returnPressed.emit()
             return
         super().keyPressEvent(event)
+
+
+class BulkImportWindow(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("BULK IMPORT")
+        self.setMinimumSize(700, 500)
+        layout = QGridLayout()
+
+        layout.addWidget(QLabel("PASTE DATA (format: (\"PART\", \"SEQ\"), ...):"), 0, 0)
+
+        self.dataEdit = QTextEdit()
+        self.dataEdit.setPlaceholderText(
+            'Paste your data here, e.g.:\n'
+            '("PART-001", "012"),\n'
+            '("PART-002", "002"),\n'
+        )
+        layout.addWidget(self.dataEdit, 1, 0)
+
+        self.previewLabel = QLabel("")
+        self.previewLabel.setWordWrap(True)
+        layout.addWidget(self.previewLabel, 2, 0)
+
+        previewBtn = QPushButton("PREVIEW")
+        previewBtn.clicked.connect(self.preview)
+        importBtn = QPushButton("IMPORT")
+        importBtn.clicked.connect(self.importData)
+        cancelBtn = QPushButton("CANCEL")
+        cancelBtn.clicked.connect(self.close)
+
+        layout.addWidget(cancelBtn, 3, 0)
+        layout.addWidget(previewBtn, 3, 1)
+        layout.addWidget(importBtn, 3, 2)
+        self.setLayout(layout)
+
+    def getPairs(self):
+        import re
+        text = self.dataEdit.toPlainText()
+        # Match ("PART", "SEQ") ignoring surrounding brackets, commas, whitespace
+        pattern = r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)'
+        matches = re.findall(pattern, text)
+        parts = [m[0] for m in matches]
+        seqs  = [m[1] for m in matches]
+        return parts, seqs
+
+    def preview(self):
+        parts, seqs = self.getPairs()
+        if not parts:
+            self.previewLabel.setText("⚠️ No valid pairs found. Check the format.")
+            return
+        preview_text = "\n".join(f"{p}  →  {s}" for p, s in zip(parts, seqs))
+        self.previewLabel.setText(f"✅ {len(parts)} pairs ready:\n{preview_text}")
+
+    def importData(self):
+        parts, seqs = self.getPairs()
+        if not parts:
+            QMessageBox.warning(self, "ERROR", "No valid pairs found. Check the format.")
+            return
+
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT part_num FROM partNumbers;")
+        existing = {row[0] for row in cur.fetchall()}
+        conn.close()
+
+        duplicates = [p for p in parts if p in existing]
+        new_pairs  = [(p, s) for p, s in zip(parts, seqs) if p not in existing]
+
+        if duplicates:
+            resp = QMessageBox.question(
+                self, "DUPLICATES FOUND",
+                f"{len(duplicates)} already exist and will be skipped:\n"
+                + "\n".join(duplicates[:10])
+                + ("\n..." if len(duplicates) > 10 else "")
+                + f"\n\nImport the remaining {len(new_pairs)}?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if resp == QMessageBox.No:
+                return
+
+        for part, seq in new_pairs:
+            ejecutar("INSERT INTO partNumbers (part_num, sequence_id) VALUES (?, ?)",
+                     (part, seq))
+
+        QMessageBox.information(self, "SUCCESS",
+            f"✅ {len(new_pairs)} parts imported successfully.")
+        self.accept()

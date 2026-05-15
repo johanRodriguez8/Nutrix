@@ -72,6 +72,7 @@ class TraceHangersWindow(QMainWindow):
         self.robot2Coordinator.startPart.connect(self.startFirstPart)
         self.robot2Coordinator.noPart.connect(self.clearHighlights)
 
+
         self.timer = partsTimer
         self.timer_thread = QThread()
         self.timer.moveToThread(self.timer_thread)
@@ -89,9 +90,6 @@ class TraceHangersWindow(QMainWindow):
         self.loadLayout()
         self.lastPartIdR1 = None
         self.lastPartIdR2 = None
-
-        self.radioR1.toggled.connect(self.onRobotSelected)
-        self.radioR2.toggled.connect(self.onRobotSelected)
 
     def loadLayout(self):
         # ---------- MAIN LAYOUT ----------
@@ -262,6 +260,9 @@ class TraceHangersWindow(QMainWindow):
         self.mainTable.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(self.mainTable)
         self.loadDataOnTable(piezas)
+
+        self.radioR1.clicked.connect(self.on_robot_selected)
+        self.radioR2.clicked.connect(self.on_robot_selected)
 
 
     def highlightProgram(self, partId, rowSearch=None, color="red"):
@@ -440,14 +441,14 @@ class TraceHangersWindow(QMainWindow):
         self.timer.updateDryingParts()
         self.timer_thread.start()
 
-    def onRobotSelected(self):
-        selected = self.robotButtonGroup.checkedId()  # Retorna 1 o 2
+    def on_robot_selected(self):
+        print("SEÑAL RECIBIDA")  # ← ¿aparece esto?
+        selected = self.robotButtonGroup.checkedId()
+        print(f"ID seleccionado: {selected}")
         if selected == 1:
             print("Robot 1 seleccionado")
-            # tu lógica para robot 1
         elif selected == 2:
             print("Robot 2 seleccionado")
-            # tu lógica para robot 2
 
 #Deberia haber 10 hilos
     @Slot(Part, Program)
