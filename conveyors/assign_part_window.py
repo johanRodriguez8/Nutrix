@@ -170,28 +170,29 @@ class writePartNumWindow(QWidget):
         self.addPartToConv()
 
     def addPartToConv(self):
-
         if self.partNumValidation() and self.workOrderValidation():
-
             partNum = self.partNumLine.text().strip()
             workOrder = self.orderLine.text().strip()
-
             newId = getNewId()
             fecha, hora = getDateTime()
 
-            parte = Part(
-                newId, self.hanger_num, self.conveyor, partNum, fecha, hora, workOrder
-            )
+            try:
+                parte = Part(
+                    newId, self.hanger_num, self.conveyor, partNum, fecha, hora, workOrder
+                )
+                print("PART ADDED")
+                self.close()
+                self.closeFunc()
+            except IndexError:
+                defaultErrorToast(self,f"PART NUMBER {partNum} NOT FOUND")
 
-            print("PART ADDED")
-
-            self.close()
-            self.closeFunc()
+                self.partNumLine.clear()
+                self.partNumLine.setFocus()
 
     def partNumValidation(self):
         partNum = self.partNumLine.text().strip()
         if self.validate_initials(partNum):
-            defaultErrorToast(self)
+            defaultErrorToast(self,"INVALID FORMAT")
             self.partNumLine.clear()
             self.partNumLine.setFocus()
             return False
@@ -201,7 +202,7 @@ class writePartNumWindow(QWidget):
         workOrder: str = self.orderLine.text().strip()
         # print(f"Work Order: {workOrder}")
         if not self.validate_initials(workOrder):
-            defaultErrorToast(self)
+            defaultErrorToast(self,"INVALID FORMAT")
             self.orderLine.clear()
             self.orderLine.setFocus()
             return False

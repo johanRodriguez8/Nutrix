@@ -22,6 +22,7 @@ class TablaPartNumbers(QWidget):
         super().__init__()
         self.setWindowTitle("STATUS PART NUMBER")
         self.showMaximized()
+        self.sort_asc = True  # <-- estado del orden
 
         layout = QVBoxLayout()
 
@@ -47,12 +48,13 @@ class TablaPartNumbers(QWidget):
 
         self.tabla = QTableWidget()
         self.tabla.setColumnCount(4)
-        self.tabla.setHorizontalHeaderLabels([
-            "PART NUMBER", "PROGRAM SEQUENCE", "EDIT", "DELETE"
-        ])
-
+        self.update_headers()  # <-- encabezados con flecha
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.tabla.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tabla.horizontalHeader().sectionClicked.connect(self.on_header_clicked)  # <-- click en header
+
+        self.tabla.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tabla.horizontalHeader().setHighlightSections(False)
         layout.addWidget(self.tabla)
 
         self.setLayout(layout)
@@ -63,8 +65,26 @@ class TablaPartNumbers(QWidget):
 
         boton_format = QPushButton("FORMAT PART NUMBERS")
         boton_format.clicked.connect(self.formatPartNumbers)
-        #layout.addWidget(boton_format)
-        #layout.addWidget(boton_bulk)
+
+    def update_headers(self):
+        arrow = "▲" if self.sort_asc else "▼"
+        self.tabla.setHorizontalHeaderLabels([
+            "PART NUMBER",
+            f"PROGRAM SEQUENCE {arrow}",  # <-- flecha en la columna 1
+            "EDIT",
+            "DELETE"
+        ])
+
+    def on_header_clicked(self, column):
+        if column == 1:  # solo columna PROGRAM SEQUENCE
+            self.sort_asc = not self.sort_asc
+            self.update_headers()
+            self.cargar_datos()
+
+    def toggle_sort(self):
+        self.sort_asc = not self.sort_asc
+        self.boton_sort.setText("▲ ASC" if self.sort_asc else "▼ DESC")
+        self.cargar_datos()
 
     def formatPartNumbers(self):
         conn = sqlite3.connect(db_path)
@@ -100,27 +120,28 @@ class TablaPartNumbers(QWidget):
             self.cargar_datos()
             QMessageBox.information(self, "SUCCESS", f"✅ {len(to_update)} records cleaned.")
 
-    # Y el método:
     def bulkImport(self):
         win = BulkImportWindow()
         win.exec()
         self.cargar_datos()
 
-
     def cargar_datos(self):
-        #Base de datos
+
+        self.tabla.hide()
+        order = "ASC" if self.sort_asc else "DESC"
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
-        cur.execute("SELECT part_num, sequence_id FROM partNumbers ORDER BY part_num;")
+        cur.execute(f"SELECT part_num, sequence_id FROM partNumbers ORDER BY sequence_id {order};")
         filas = cur.fetchall()
         conn.close()
+
         self.tabla.setRowCount(len(filas))
 
         for r, (partNum, seqId) in enumerate(filas):
             self.tabla.setRowHeight(r, FONT_SIZE*2+10)
             item_part = QTableWidgetItem(str(partNum))
             seqIdItem = QTableWidgetItem(str(seqId))
-            color = "#c8f7c5" 
+            color = "#c8f7c5"
             for it in (item_part, seqIdItem):
                 it.setBackground(QtGui.QColor(color))
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
@@ -130,17 +151,17 @@ class TablaPartNumbers(QWidget):
                 it.setFont(font)
             self.tabla.setItem(r, 0, item_part)
             self.tabla.setItem(r, 1, seqIdItem)
-            #Edit button
+
             btn_edit = QPushButton("EDIT")
             font.setPointSize(FONT_SIZE)
             btn_edit.setFont(font)
             btn_edit.setStyleSheet("""
-                    QPushButton {
-                        background-color: #6c757d;
-                        color: white; font-weight: bold; padding: 6px; border-radius: 6px;
-                    }
-                    QPushButton:hover { background-color: #5a6268; }
-                """)
+                QPushButton {
+                    background-color: #6c757d;
+                    color: white; font-weight: bold; padding: 6px; border-radius: 6px;
+                }
+                QPushButton:hover { background-color: #5a6268; }
+            """)
             btn_edit.clicked.connect(lambda _, id=partNum: self.editPart(str(id)))
             cell_edit = QWidget()
             lay_d = QHBoxLayout(cell_edit)
@@ -149,6 +170,7 @@ class TablaPartNumbers(QWidget):
             btn_edit.setMinimumWidth(LEN_SIZE)
             lay_d.addWidget(btn_edit)
             self.tabla.setCellWidget(r, 2, cell_edit)
+
             btn_delete = QPushButton("DELETE")
             font.setPointSize(FONT_SIZE)
             btn_delete.setFont(font)
@@ -161,7 +183,6 @@ class TablaPartNumbers(QWidget):
                 QPushButton:hover { background-color: #c9302c; }
             """)
             btn_delete.clicked.connect(lambda _, _id=partNum: self.deletePart(_id))
-
             cell_delete = QWidget()
             lay_d = QHBoxLayout(cell_delete)
             lay_d.setContentsMargins(16, 4, 16, 4)
@@ -170,6 +191,8 @@ class TablaPartNumbers(QWidget):
             lay_d.addWidget(btn_delete)
             self.tabla.setCellWidget(r, 3, cell_delete)
 
+        self.tabla.show() 
+
     def deletePart(self, row_id: int):
         resp = QMessageBox.question(self, "DELETE PART NUMBER",
                                     f"¿Eliminar '{row_id}'? Esta acción no se puede deshacer.",
@@ -177,10 +200,12 @@ class TablaPartNumbers(QWidget):
         if resp == QMessageBox.Yes:
             ejecutar_y_respaldar("DELETE FROM partNumbers WHERE part_num=?", (row_id,))
             self.cargar_datos()
+
     def addPart(self):
         windowPart = addPartWindow()
         windowPart.exec()
         self.cargar_datos()
+
     def editPart(self, newId):
         windowPart = addPartWindow(newId)
         windowPart.exec()
@@ -274,7 +299,7 @@ class addPartWindow(QDialog):
         if scanned_value.startswith(("SO", "SP", "EX", "PW")):
 
             
-            defaultErrorToast(self)
+            defaultErrorToast(self,"INVALID FORMAT")
             self.partId.clear()
             self.partId.setFocus()
             return
