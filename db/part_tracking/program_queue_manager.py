@@ -46,7 +46,7 @@ class ProgramQueueManager():
             self.currentPartRobot1.programs = [emptyProgram]
             #print(f"PRIMER ROBOT: {self.currentPartRobot1.getCurrentProgram().current_hanger}{self.currentPartRobot1.getCurrentProgram().current_conveyor}")
         if self.currentPartRobot2 == None and robotNum == 2:
-            #print("NO HABIA PARTE ACTUAL DEL ROBOT2")
+            print("NO HABIA PARTE ACTUAL DEL ROBOT2")
             emptyProgram = Program()
             emptyProgram.current_hanger = copy.deepcopy(self.robot2.reader_float[0]) 
             emptyProgram.current_conveyor = "C"
@@ -72,6 +72,8 @@ class ProgramQueueManager():
             if highestPriorityPart:
                 self.priorityQueue.remove(highestPriorityPart)
                 return highestPriorityPart
+
+        
         if len(self.mainQueue) > 0:
             self.dc.print(f"MAIN LIST: ", robotNum)
             # for part in self.mainQueue:

@@ -69,7 +69,7 @@ class RobotCoordinator(QObject):
                 time.sleep(WAIT_UPDATE_TIME)
             if waitTime > TIME_OUT:
                 self.dc.print(f"R{self.robotNum}: ERROR, TIEMPO DE ESPERA AGOTADO", self.robotNum)
-                return "ERROR"
+                return False
             #Inicia el ciclo 
             program.state = 'RUNNING'
             part.updateAll()
@@ -78,10 +78,22 @@ class RobotCoordinator(QObject):
             program.start_date = datetime.now().strftime("%m/%d/%Y")
             self.programRunning.emit(part, program)
             #Espera a que el programa termine de correr
-            while self.robot.program_running or not self.robot.program_idle:
+            # while self.robot.program_running or not self.robot.program_idle:
+            #reader_values 10 and 12 are for leftCOnv A, B in robot 1, C, D robot 2
+            left1 = self.robot.reader_values[10]
+            left2 = self.robot.reader_values[12]
+            while not (left1 or left2):
                 if self.stop:
                     break
+                if self.robot.program_idle:
+                    print(f"{self.robot.name} COORDINATOR: ALARMA PROGRAM IDLE")
+                    program.state = 'READY'
+                    part.updateAll()
+                    self.programRunning.emit(part, program)
+                    return False
                 self.robot._update_status_flags()
+                left1 = self.robot.reader_values[10]
+                left2 = self.robot.reader_values[12]
                 time.sleep(WAIT_UPDATE_TIME)
             program.state = 'DRYING'
             self.timer.addDryingPart(part)
@@ -102,6 +114,7 @@ class RobotCoordinator(QObject):
                 self.queueManager.currentPartRobot1 = None
             else:
                 self.queueManager.currentPartRobot2 = None
+            return True
         else:
              self.dc.print(f"R{self.robotNum}: NO CONECTADO", self.robotNum)
     def sendOutput(self, conveyor, hanger):
@@ -164,7 +177,15 @@ class RobotCoordinator(QObject):
                     else:
                         self.waitForHanger(self.currentPart.getCurrentProgram(), self.currentPart)
                         self.waitForEndHangerOk(self.currentPart.getCurrentProgram(), self.currentPart)
-                    self.runProgramToCompletion(self.currentPart)
+                    answer = self.runProgramToCompletion(self.currentPart)
+                    if not answer:
+                        self.stop = True
+                    # while not answer:
+                    #     print(f"VOLVIENDO A INICIAR EL CICLO HASTA QUE SE PROCESE LA PIEZA")
+                    #     self.waitForHanger(self.currentPart.getCurrentProgram(), self.currentPart)
+                    #     self.waitForEndHangerOk(self.currentPart.getCurrentProgram(), self.currentPart)
+                    #     answer = self.runProgramToCompletion(self.currentPart)
+
                     self.currentPart.updateAll()
                 else:
                     # if self.robotNum == robotToDebug:

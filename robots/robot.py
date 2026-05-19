@@ -19,6 +19,7 @@ class Robot:
         self.floats = []
         self.floatInputs = []
         self.floatOutputs = []
+        self.booleanOutputs = []
         self.hanger_pos_ok = []
 
         self.heartbeat = None
@@ -49,6 +50,14 @@ class Robot:
         self.convBOk = False
         self.convCOk = False
         self.convDOk = False
+        self.takenConvA = 0
+        self.leftConvA = 0
+        self.takenConvB =0
+        self.leftConvB = 0
+        self.takenConvC = 0
+        self.leftConvC = 0
+        self.takenConvD =0
+        self.leftConvD = 0
 
 
     def connect(self):
@@ -80,6 +89,7 @@ class Robot:
         self.floats = []
         self.floatInputs = []
         self.floatOutputs = []
+        self.booleanOutputs = []
         for child in node.get_children():
             try:
                 name = child.get_browse_name().Name.lower()
@@ -94,18 +104,29 @@ class Robot:
                 if "heartbeat" in name:
                     self.heartbeat = child
 
-                elif isinstance(value, bool):
-                    if "output" in name:
-                        self.outputs.append(child)
-                    else:
-                        self.inputs.append(child)
+                # elif isinstance(value, bool):
+                #     if "output" in name:
+                #         self.outputs.append(child)
+                #     else:
+                #         self.inputs.append(child)
 
-                elif isinstance(value, float):
-                    self.floats.append(child)
-                    if "output" in name:
-                        self.floatOutputs.append(child)
-                    else:
-                        self.floatInputs.append(child)
+                # elif isinstance(value, float):
+                #     self.floats.append(child)
+                #     if "floatoutput" in name:
+                #         self.floatOutputs.append(child)
+                #     else:
+                #         self.floatInputs.append(child)
+                if "floatoutput" in name:
+                    self.floatOutputs.append(child)
+                elif "floatinput" in name:
+                    self.floatInputs.append(child)
+                elif "output" in name:
+                    self.outputs.append(child)
+                elif "input" in name:
+                    self.inputs.append(child)
+                else:
+                    print(f"{self.name}: No es output o input {name} {value}")
+                
 
                 # Debug print
                 #print(f"{name} | {child.nodeid} | {value} | {dtype}")
@@ -140,6 +161,7 @@ class Robot:
                     with self.lock:
                         self.classify()
                         self.reader_values = [inp.get_value() for inp in self.inputs]
+                        self.write_values = [inp.get_value() for inp in self.outputs]
                         self.float_values = [fl.get_value() for fl in self.floats]
                         self.reader_float = [fl.get_value() for fl in self.floatInputs]
                         self.writer_float = [fl.get_value() for fl in self.floatOutputs]
@@ -149,8 +171,9 @@ class Robot:
                     #     print(f"NAME: {self.name} : CONV C: {self.convCOk}")
                     #     print(f"NAME: {self.name} : CONV D: {self.convDOk}")
 
-                except Exception:
+                except Exception as e:
                     self.connected = False
+                    print(f"{self.name}: Connection loop error {e}")
                     try:
                         self.client.disconnect()
                     except:
@@ -190,21 +213,29 @@ class Robot:
             if self.name == "Robot1":
                 self.convAOk = v[7]
                 self.convBOk = v[8] 
-                self.fromConvA = v[9]
-                self.fromConvB = v[10]
-                self.toConvA = v[11]
-                self.toConvB = v[12]
+                self.takenConvA = v[9]
+                self.leftConvA = v[10]
+                self.takenConvB = v[11]
+                self.leftConvB = v[12]
+                # self.fromConvA = v[9]
+                # self.fromConvB = v[10]
+                # self.toConvA = v[11]
+                # self.toConvB = v[12]
                 self.hangerA = self.reader_float[0]
                 self.hangerB = self.reader_float[2]
             else:
                 self.convCOk = v[7]
                 self.convDOk = v[8]
-                self.fromConvB = v[9]
-                self.fromConvC = v[10]
-                self.fromConvD = v[11]
-                self.toConvB = v[12]
-                self.toConvC = v[13]
-                self.toConvD = v[14]
+                self.takenConvC = v[9]
+                self.leftConvC = v[10]
+                self.takenConvD = v[11]
+                self.leftConvD = v[12]
+                # self.fromConvB = v[9]
+                # self.fromConvC = v[10]
+                # self.fromConvD = v[11]
+                # self.toConvB = v[12]
+                # self.toConvC = v[13]
+                # self.toConvD = v[14]
                 self.hangerC = self.reader_float[0]
                 self.hangerD = self.reader_float[2]
             #9 viene del conveyor a
@@ -256,13 +287,42 @@ class Robot:
         index: position in self.floatOutputs
         value: float value to send
         """
-        if not self.connected:
-            print("Robot not connected")
-            return
+        #if not self.connected:
+        #    print("Robot not connected")
+        #    return
         try:
             with self.lock:
                 self.floatOutputs[index].set_value(float(value))
 
         except Exception as e:
-            print(f"Error setting float output {index}: {e}")
+            print(f"{self.name}: Error setting float output {index}: {e}")
+            self.connected = False
+
+    def set_bool_output(self, index, value):
+        """
+        Set a floating-point output value.
+
+        index: position in self.outputs
+        value: boolean value to send
+        0 is for conveyor A or C
+        1 is for conveyor B or D
+        """
+        #if not self.connected:
+        #    print("Robot not connected")
+        #    return
+        try:
+            with self.lock:
+                self.outputs[index].set_value(float(value))
+
+        except Exception as e:
+            print(f"{self.name}: Error setting boolean output {index}: {e}")
+            self.connected = False
+
+    def shut_down_all_outputs(self):
+        try:
+            with self.lock:
+                for output in self.outputs:
+                    output.set_value(0)
+        except Exception as e:
+            print(f"{self.name}: Error shutting down all signals {e}")
             self.connected = False

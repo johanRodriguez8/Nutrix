@@ -192,10 +192,10 @@ class TraceHangersWindow(QMainWindow):
 
         recordButton = QPushButton("START PROGRAM")
         recordButton.clicked.connect(
-            lambda _:  self.startCycle()
+            lambda _:  self.startCycle(recordButton)
         )
         stopBtn = QPushButton("STOP CYCLE")
-        stopBtn.clicked.connect(lambda _: self.stopUpdate())
+        stopBtn.clicked.connect(lambda _: self.stopUpdate(recordButton))
         layout.addWidget(recordButton)
         layout.addWidget(stopBtn)
         self.update_conn_signal.connect(self.updateConn)
@@ -241,6 +241,13 @@ class TraceHangersWindow(QMainWindow):
         self.mainTable.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(self.mainTable)
         self.loadDataOnTable(piezas)
+
+        if self.mainTable.rowCount() == 0:
+            stopBtn.setDisabled(True)
+            recordButton.setDisabled(True)
+            self.radioR1.setDisabled(True)
+            self.radioR2.setDisabled(True)
+
 
         self.radioR1.clicked.connect(self.on_robot_selected)
         self.radioR2.clicked.connect(self.on_robot_selected)
@@ -406,14 +413,27 @@ class TraceHangersWindow(QMainWindow):
                     self.mainTable.setItem(row, column, newItem)
                 break
 
-    def startCycle(self):
+    def startCycle(self,button: QPushButton):
         #TODO: SIMPLIFY SIGNALS
         #Inician los coordinadores
         self.isListening = True
-        self.startRobot1()
-        self.startRobot2()
-        self.startTimer()
+        # if self.getReadyState(1):
+        #     self.startRobot1()
+        if self.getReadyState(2):
+            self.startRobot2()
+            button.setEnabled(False)
+        else:
+            print("ROBOT 2 NO PASO")
 
+        self.startTimer()
+        self.ledR1Started.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
+
+    def getReadyState(self, robotNum):
+        robot = self.robot1 if robotNum == 1 else self.robot2
+        #convOK = self.robot1.convAOk else s
+        if robot.home_all and robot.machine_ready and robot.machine_on and robot.program_idle:
+            return True
+        return False
     def startTimer(self):
         self.timer.stop = False
         self.timer.updateDryingParts()
@@ -536,8 +556,11 @@ class TraceHangersWindow(QMainWindow):
                     str(currentTime)
                 )
  
-    def stopUpdate(self):
+    def stopUpdate(self, recordButton: QPushButton):
         self.isListening = False
+        self.ledR2Stopped.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
+        self.ledR1Started.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
+        recordButton.setEnabled(True)
         self.stopRobot1()
         self.stopRobot2()
         self.stopTimer()

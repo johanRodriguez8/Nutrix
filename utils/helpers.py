@@ -64,7 +64,7 @@ def formatToTime(tiempo):
             elementos.append(i)
     #TODO: Aqui se modifica cuando pasen de minutos a horas
     if len(elementos) <= 2:
-        salida = f"00:{elementos[0]}:{elementos[1]}"
+        salida = f"{elementos[0]}:{elementos[1]}:00"
     else:
         salida = f"{elementos[0]}:{elementos[1]}:{elementos[2]}"
     return salida

@@ -119,8 +119,16 @@ class MainRobotWindow(QWidget):
             self.inputPinVariables = [
                 "ADMIN READY", "PROGRAM RUNNING", "PROGRAM PAUSE", "PROGRAM IDLE",
                 "PROGRAM LOAD", "MACHINE ON", "HOME ALL", 
-                "CONVEYOR A HANGER OK", "CONVEYOR B HANGER OK"
+                "CONVEYOR A HANGER OK", "CONVEYOR B HANGER OK",
+                "TAKEN CONV A", "LEFT CONV A", "TAKEN CONV B", "LEFT CONV B"
+
+
             ]
+            # self.inputPinVariables = [
+            #     "ADMIN READY", "PROGRAM RUNNING", "PROGRAM PAUSE", "PROGRAM IDLE",
+            #     "PROGRAM LOAD", "MACHINE ON", "HOME ALL", 
+            #     "CONVEYOR A HANGER OK", "CONVEYOR B HANGER OK"
+            # ]
         else:
             # self.inputPinVariables = [
             #     "ADMIN READY", "PROGRAM RUNNING", "PROGRAM PAUSE", "PROGRAM IDLE",
@@ -131,8 +139,14 @@ class MainRobotWindow(QWidget):
             # ]
             self.inputPinVariables = [
                 "ADMIN READY", "PROGRAM RUNNING", "PROGRAM PAUSE", "PROGRAM IDLE",
-                "PROGRAM LOAD", "MACHINE ON", "HOME ALL", "CONVEYOR C HANGER OK", "CONVEYOR D HANGER OK"
+                "PROGRAM LOAD", "MACHINE ON", "HOME ALL", 
+                "CONVEYOR C HANGER OK", "CONVEYOR D HANGER OK",
+                "TAKEN CONV C", "LEFT CONV C", "TAKEN CONV D", "LEFT CONV D"
             ]
+            # self.inputPinVariables = [
+            #     "ADMIN READY", "PROGRAM RUNNING", "PROGRAM PAUSE", "PROGRAM IDLE",
+            #     "PROGRAM LOAD", "MACHINE ON", "HOME ALL", "CONVEYOR C HANGER OK", "CONVEYOR D HANGER OK"
+            # ]
 
         layout = QVBoxLayout()
 
@@ -258,8 +272,11 @@ class MainRobotWindow(QWidget):
     def threadUpdateLeds(self):
         while self.isListening:
             #TODO: UNCOMMENT FOR EACH ROBOT
-            self.robot2.set_float_output(0, 61)
-            self.robot2.set_float_output(1, 18)
+            # self.robot2.set_float_output(0, 12)
+            # self.robot2.set_float_output(1, 2)
+            # self.robot2.set_bool_output(0, 0)
+            # self.robot2.set_bool_output(1, 0)
+            #self.robot2.shut_down_all_outputs()
             self.update_led_signal.emit(0, self.robot1.reader_values)
             self.update_led_signal.emit(1, self.robot2.reader_values)
             self.update_hanger_signal.emit(0, self.robot1.reader_float, self.robot1.writer_float)
