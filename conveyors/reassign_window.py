@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import  QMessageBox
 from utils.helpers import getDateTime, getNewId
 from db.part_tracking.part import Part 
-from db.database import selectFromDB, ejecutar_y_respaldar
+from db.database import selectFromDB, ejecutar, ejecutar_y_respaldar
 
 class ReassingWindow(QDialog):
     def __init__(self, current_hanger, current_conveyor, part_id):
@@ -74,26 +74,20 @@ class ReassingWindow(QDialog):
         print(f"{self.part_id}")
 
         self.update_part(new_hanger,new_conveyor)
-        self.close
 
 
-    def update_part(self, new_hanger,new_conveyor):
+    def update_part(self, new_hanger, new_conveyor):
+        # Verifica que el registro existe ANTES
+        resultado = selectFromDB("SELECT part_id, hanger_num, conveyor FROM parts WHERE part_id = ?", (self.part_id,))
+        print(f"Antes del update: {resultado}")
 
-                        #     ejecutar_y_respaldar(
-                        # f"""UPDATE programs SET 
-                        #     program_id = ?,
-                        #     path = ?,
-                        #     robot_num = ?
-                        #     WHERE program_id=?""",
-                        #     (new_program_id, path, robot_num, program_id)
-                        # )
+        update_query = "UPDATE parts SET hanger_num = ?, conveyor = ? WHERE part_id = ?"
+        params = (new_hanger, new_conveyor, self.part_id)
+        ejecutar_y_respaldar(update_query, params)
 
-        update_query = f"""UPDATE parts SET hanger_num = ?, conveyor = ? WHERE part_id = ?"""
-        params = (new_hanger,new_conveyor, self.part_id)
-
-        ejecutar_y_respaldar(update_query,params)
-        #2105260011
-        print("ACTUALIZADO")
+        # Verifica que cambió DESPUÉS
+        resultado = selectFromDB("SELECT part_id, hanger_num, conveyor FROM parts WHERE part_id = ?", (self.part_id,))
+        print(f"Después del update: {resultado}")
 
 
 
