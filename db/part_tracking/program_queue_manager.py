@@ -103,7 +103,7 @@ class ProgramQueueManager():
             #Si el programa no ha corrido
             if (programa.robot_num == robotNum and programa.state != "WAITING") or \
                 (nextProgram.robot_num == robotNum and programa.state == "WAITING"): #Si le pertenece al robot
-                if self.isInConvB(part) and self.prioridad == robotNum: #Si el conveyor B le pertenece a este robot o a ninguno
+                if self.isInConvB(part) and self.priority == robotNum: #Si el conveyor B le pertenece a este robot o a ninguno
                     distance = self.getDistance(part)
                     if shortestDist == None:
                         shortestDist = distance
@@ -180,7 +180,7 @@ class ProgramQueueManager():
                 self.priorityQueue.append(newPart)
             elif newPart.getCurrentProgram().state == "DRYING":
                 self.dryingList.append(newPart)
-            else:
+            elif newPart.getCurrentProgram().state == "READY":
                 self.mainQueue.append(newPart)
 
 

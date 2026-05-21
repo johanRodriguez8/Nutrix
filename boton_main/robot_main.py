@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QPushButton, QHBoxLayout,
     QMessageBox, QFrame, QLineEdit, QSizePolicy, QScrollArea
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QThread
 import time
 import threading
 from robots.robot import Robot
@@ -31,6 +31,9 @@ class MainRobotWindow(QWidget):
         partsTimer:PartsTimer, queueManager:ProgramQueueManager):
 
         super().__init__()
+
+
+        self.destroyed.connect(self.stopThread)
 
         self.ip1, self.ip2 = load_ips()
         self.robot1Coordinator = robot1Coordinator
@@ -257,10 +260,13 @@ class MainRobotWindow(QWidget):
 
         return layout, inputLeds, hangerNums, readedOutputs
 
-    def closeEvent(self, event):
+    def stopThread(self, event):
         self.isListening = False
         if hasattr(self, "led_thread") and self.led_thread.is_alive():
             self.led_thread.join()
+            #self.led_thread.requestInterruption() # 1. Solicitar alto
+            #self.led_thread.quit()                # 3. Salir del bucle de eventos
+            #self.led_thread.wait()
         super().closeEvent(event)
 
     def updateLedsSlot(self, robotIndex, states):
@@ -277,8 +283,8 @@ class MainRobotWindow(QWidget):
             # self.robot2.set_bool_output(0, 0)
             # self.robot2.set_bool_output(1, 0)
             #self.robot2.shut_down_all_outputs()
-            self.update_led_signal.emit(0, self.robot1.reader_values)
-            self.update_led_signal.emit(1, self.robot2.reader_values)
+            self.update_led_signal.emit(0, list(self.robot1.reader_values))
+            self.update_led_signal.emit(1, list(self.robot2.reader_values))
             self.update_hanger_signal.emit(0, self.robot1.reader_float, self.robot1.writer_float)
             self.update_hanger_signal.emit(1, self.robot2.reader_float, self.robot2.writer_float)
             time.sleep(WAITING_TIME)

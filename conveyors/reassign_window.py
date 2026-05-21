@@ -1,13 +1,13 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QHBoxLayout, QMessageBox, QInputDialog, QDialog,
-    QComboBox, QLineEdit, QPushButton, QGridLayout, QTabWidget
+    QComboBox, QLineEdit, QPushButton, QGridLayout, QTabWidget, QPushButton
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import  QMessageBox
 from utils.helpers import getDateTime, getNewId
 from db.part_tracking.part import Part 
-from db.database import selectFromDB
+from db.database import selectFromDB, ejecutar_y_respaldar
 
 class ReassingWindow(QDialog):
     def __init__(self, current_hanger, current_conveyor, part_id):
@@ -17,9 +17,11 @@ class ReassingWindow(QDialog):
         self.current_conveyor = str(current_conveyor)
         self.new_hanger = str(current_hanger)
         self.new_conveyor = str(current_conveyor)
+        self.part_id = part_id
         self.conveyor_list = ["A", "B", "C", "D"]
         self.layout = QVBoxLayout()
         hbox = QHBoxLayout()
+        self.accept_button = QPushButton("ACCEPT")
         currentHangerLabel = QLabel(f"FROM HANGER: {current_hanger}")
         hbox.addWidget(currentHangerLabel)
         currentConvLabel = QLabel(f"CONVEYOR: {current_conveyor}")
@@ -47,7 +49,10 @@ class ReassingWindow(QDialog):
 
         self.convBox = QComboBox()
         self.convBox.addItems(self.conveyor_list)
-        self.convBox.currentIndexChanged.connect(self.changedConv)
+        #self.convBox.currentIndexChanged.connect(self.changedConv)
+
+
+        self.accept_button.clicked.connect(lambda: self.changedConv())
         try:
             index = self.conveyor_list.index(self.current_conveyor)
         except:
@@ -56,7 +61,39 @@ class ReassingWindow(QDialog):
         hbox.addWidget(self.convBox)
 
         self.layout.addLayout(hbox)
+        self.layout.addWidget(self.accept_button)
         self.setLayout(self.layout)
 
     def changedConv(self):
+
+        new_hanger = self.hangerBox.currentText()
+        new_conveyor = self.convBox.currentText()
         print("CHANGED")
+        print(f"{new_hanger}")
+        print(f"{new_conveyor}")
+        print(f"{self.part_id}")
+
+        self.update_part(new_hanger,new_conveyor)
+        self.close
+
+
+    def update_part(self, new_hanger,new_conveyor):
+
+                        #     ejecutar_y_respaldar(
+                        # f"""UPDATE programs SET 
+                        #     program_id = ?,
+                        #     path = ?,
+                        #     robot_num = ?
+                        #     WHERE program_id=?""",
+                        #     (new_program_id, path, robot_num, program_id)
+                        # )
+
+        update_query = f"""UPDATE parts SET hanger_num = ?, conveyor = ? WHERE part_id = ?"""
+        params = (new_hanger,new_conveyor, self.part_id)
+
+        ejecutar_y_respaldar(update_query,params)
+        #2105260011
+        print("ACTUALIZADO")
+
+
+

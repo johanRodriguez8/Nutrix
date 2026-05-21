@@ -9,7 +9,7 @@ from PyQt5 import QtGui
 import sqlite3
 from PyQt5.QtWidgets import QApplication, QMessageBox
 import copy
-from db.database import ejecutar_y_respaldar, db_path, ejecutar
+from db.database import ejecutar_y_respaldar, db_path, selectFromDB
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, LEN_SIZE, getDateTime, getNewId
 from db.part_tracking.part import Part 
 from conveyors.reassign_window import ReassingWindow
@@ -30,7 +30,7 @@ class TablaConveyor(QWidget):
 
         self.tabla = QTableWidget()
         headers = [
-            "HANGER NUMBER", "STATUS", "ENABLED","PART ID", "WORK ORDER", "PART NUMBER",
+            "HANGER NUMBER", "STATUS", "ENABLED","PART ID", "WORK ORDER", "PART NUMBER", "SEQUENCE ID", "STATUS",
             "ASSIGN/UNASSIGN", "ENABLE/DISABLE", "REASSIGN"
         ]
         self.tabla.setColumnCount(len(headers))
@@ -59,8 +59,20 @@ class TablaConveyor(QWidget):
         self.tabla.setItemDelegate(self.delegate)
         for r, (hanger_id, numero_hanger, status, habilitado, part_id, part_num, order_id) in enumerate(filas):
             self.tabla.setRowHeight(r, FONT_SIZE*2+10)
-            item_num = QTableWidgetItem(str(numero_hanger))
+            if status == "FULL":
+                seqId = selectFromDB("SELECT sequence_id FROM partNumbers WHERE part_num=? ", (part_num, ))
+                state = selectFromDB("SELECT state FROM currentParts WHERE part_id=?", (part_id, ))
+                item_seqId = QTableWidgetItem(seqId[0][0])
+                item_state = QTableWidgetItem(state[0][0])
+                if state[0][0] == "ALARM":
+                    item_state.setBackground(QtGui.QColor("red"))
+                else:
+                    item_state.setBackground(QtGui.QColor("#c8f7c5"))
+            else:
+                item_seqId = QTableWidgetItem("-")
+                item_state = QTableWidgetItem("-")
 
+            item_num = QTableWidgetItem(str(numero_hanger))
             display_status = status#"LOAD" if (no_parte and str(no_parte).strip()) else "EMPTY"
             item_status = QTableWidgetItem(display_status)
             item_enabled = QTableWidgetItem("YES" if habilitado else "NO")
@@ -69,8 +81,9 @@ class TablaConveyor(QWidget):
             item_order = QTableWidgetItem(str(order_id) or "")
 
             color = QtGui.QColor("#c8f7c5") if habilitado else QtGui.QColor("#f7c5c5")
-            for it in (item_num, item_status, item_enabled, item_partId, item_partNum, item_order):
-                it.setBackground(color)
+            for it in (item_num, item_status, item_enabled, item_partId, item_partNum, item_order, item_seqId, item_state):
+                if it != item_state:
+                    it.setBackground(color)
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
                 it.setTextAlignment(Qt.AlignCenter)
                 font = it.font()
@@ -83,6 +96,8 @@ class TablaConveyor(QWidget):
             self.tabla.setItem(r, 3, item_partId)
             self.tabla.setItem(r, 4, item_order)
             self.tabla.setItem(r, 5, item_partNum)
+            self.tabla.setItem(r, 6, item_seqId)
+            self.tabla.setItem(r, 7, item_state)
 
             btn_assign = QPushButton("UNASSIGN" if part_id!=None else "ASSIGN")
             font = btn_assign.font()
@@ -107,7 +122,7 @@ class TablaConveyor(QWidget):
             lay_a.setContentsMargins(16, 4, 16, 4)
             lay_a.setAlignment(Qt.AlignCenter)
             lay_a.addWidget(btn_assign)
-            self.tabla.setCellWidget(r, 6, cell_assign)
+            self.tabla.setCellWidget(r, 8, cell_assign)
 
             btn_toggle = QPushButton("DISABLE" if habilitado else "ENABLE")
             font = btn_toggle.font()
@@ -131,7 +146,7 @@ class TablaConveyor(QWidget):
             lay_t.setContentsMargins(16, 4, 16, 4)
             lay_t.setAlignment(Qt.AlignCenter)
             lay_t.addWidget(btn_toggle)
-            self.tabla.setCellWidget(r, 7, cell_toggle)
+            self.tabla.setCellWidget(r, 9, cell_toggle)
 
             reassign_btn = QPushButton("REASSIGN")
             font = reassign_btn.font()
@@ -153,7 +168,7 @@ class TablaConveyor(QWidget):
             lay_a.setContentsMargins(16, 4, 16, 4)
             lay_a.setAlignment(Qt.AlignCenter)
             lay_a.addWidget(reassign_btn)
-            self.tabla.setCellWidget(r, 8, cell_assign)
+            self.tabla.setCellWidget(r, 10, cell_assign)
         #self.highlight("6", 2)
         #self.highlight("21", 3)
     def highlight(self, conveyorId, tipo):

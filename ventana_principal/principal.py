@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QMessageBox, QApplication, QStackedWidget
 )
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread
 
 # --- Paths and constants ---
 ruta_script = os.path.dirname(os.path.abspath(__file__))
@@ -50,6 +50,9 @@ dc = DualConsole()
 queueManager = ProgramQueueManager(robot1, robot2, partsTimer, dc)
 robot1Coordinator = RobotCoordinator(queueManager, partsTimer, 1, robot1, robot1Loader, robot2, robot2Loader, dc)
 robot2Coordinator = RobotCoordinator(queueManager, partsTimer, 2, robot1, robot1Loader, robot2, robot2Loader, dc)
+coordinator1Thread = QThread()
+coordinator2Thread = QThread()
+timer_thread = QThread()
 # --- Custom button ---
 class BotonAnimado(QPushButton):
     def __init__(self, texto):
@@ -111,8 +114,9 @@ class VentanaPrincipal(QMainWindow):
             if texto == "MAIN":
                 boton.clicked.connect(
                     lambda checked, t=texto, w=clase_widget, r1=robot1, r2=robot2, l1=robot1Loader, l2=robot2Loader, 
-                    c1=robot1Coordinator, c2=robot2Coordinator, pt=partsTimer, pqm=queueManager:
-                    self.mostrar_ventana(t, w, [r1, l1, r2, l2, c1, c2, pt, pqm])
+                    c1=robot1Coordinator, c2=robot2Coordinator, pt=partsTimer, pqm=queueManager, thread1=coordinator1Thread, 
+                    thread2=coordinator2Thread, timerThread=timer_thread:
+                    self.mostrar_ventana(t, w, [r1, l1, r2, l2, c1, c2, pt, pqm, thread1, thread2, timerThread])
                 )
             elif texto in conveyors:
                 letra = texto.split()[-1]  # A, B, C, D
@@ -188,6 +192,15 @@ class VentanaPrincipal(QMainWindow):
                 robot1Loader.stopConnection()
                 robot1Coordinator.stopCycle()
                 robot2Coordinator.stopCycle()
+                timer_thread.requestInterruption() # 1. Solicitar alto
+                timer_thread.quit()                # 3. Salir del bucle de eventos
+                timer_thread.wait()
+                coordinator1Thread.requestInterruption() # 1. Solicitar alto
+                coordinator1Thread.quit()                # 3. Salir del bucle de eventos
+                coordinator1Thread.wait()
+                coordinator2Thread.requestInterruption() # 1. Solicitar alto
+                coordinator2Thread.quit()                # 3. Salir del bucle de eventos
+                coordinator2Thread.wait()
                 event.accept()
             else:
                 event.ignore()

@@ -14,7 +14,7 @@ import paramiko
 
 R1_IP = '10.170.83.210'
 R2_IP = "10.170.83.211"
-port = 22 # Default SSH port
+port = 4840 # Default SSH port
 username = 'numtek'
 password = '123' # Or use key-based authentication for better security
 ROBOT_USER = "numtek"

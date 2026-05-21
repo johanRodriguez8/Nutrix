@@ -102,6 +102,18 @@ print("RUN")
 """
         return self._run_script(script)
 
+       # ================= CYCLE STOP =================
+    def stop_program(self):
+        script = """
+import linuxcnc, time
+c = linuxcnc.command()
+c.mode(linuxcnc.MODE_AUTO)
+time.sleep(0.2)
+c.abort
+print("STOP PROGRAM")
+"""
+        return self._run_script(script)
+
     # ================= WAIT FINISH =================
     def wait_until_finished(self):
         script = """

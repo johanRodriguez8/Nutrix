@@ -44,20 +44,44 @@ class TraceHangersWindow(QMainWindow):
     update_table_signal = pyqtSignal(str, int, str)
 
     def __init__(self, robot1:Robot, robot1Loader:RobotLoader, robot2:Robot, robot2Loader:RobotLoader, 
-        robot1Coordinator:RobotCoordinator, robot2Coordinator:RobotCoordinator, partsTimer:PartsTimer, queueManager:ProgramQueueManager):
+        robot1Coordinator:RobotCoordinator, robot2Coordinator:RobotCoordinator, partsTimer:PartsTimer, queueManager:ProgramQueueManager, 
+        coordinator1Thread:QThread, coordinator2Thread:QThread, timer_thread:QThread):
         super().__init__()
         self.queueManager = queueManager
 
         self.robot1Coordinator = robot1Coordinator
-        
+        self.coordinator1Thread = coordinator1Thread
+        self.robot1Coordinator.moveToThread(self.coordinator1Thread)
+        self.coordinator1Thread.started.connect(self.robot1Coordinator.startCycle)
+        self.robot1Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
+        self.robot1Coordinator.programEnded.connect(self.updateTablePart)
+        self.robot1Coordinator.changedPart.connect(self.updateLastPart)
+        self.robot1Coordinator.updateTimeDev.connect(self.updateTimeDev)
+        self.robot1Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
+        self.robot1Coordinator.updateProgramPart.connect(self.updateTablePart)
+        self.robot1Coordinator.startPart.connect(self.startFirstPart)
+        self.robot1Coordinator.noPart.connect(self.clearHighlights)
+        self.robot1Coordinator.alarmedPart.connect(self.alarmPart)
 
         self.robot2Coordinator = robot2Coordinator
+        self.coordinator2Thread = coordinator2Thread
+        self.robot2Coordinator.moveToThread(self.coordinator2Thread)
+        self.coordinator2Thread.started.connect(self.robot2Coordinator.startCycle)
+        self.robot2Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
+        self.robot2Coordinator.programEnded.connect(self.updateTablePart)
+        self.robot2Coordinator.changedPart.connect(self.updateLastPart)
+        self.robot2Coordinator.updateTimeDev.connect(self.updateTimeDev)
+        self.robot2Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
+        self.robot2Coordinator.updateProgramPart.connect(self.updateTablePart)
+        self.robot2Coordinator.startPart.connect(self.startFirstPart)
+        self.robot2Coordinator.noPart.connect(self.clearHighlights)
+        self.robot2Coordinator.alarmedPart.connect(self.alarmPart)
 
 
         self.timer = partsTimer
-        self.timer_thread = QThread()
+        self.timer_thread = timer_thread
         self.timer.moveToThread(self.timer_thread)
-        self.timer_thread.started.connect(self.timer.checkTimer)
+        self.timer_thread.started.connect(self.timer.timerCycle)
         self.timer.updateTimer.connect(self.updateCurrentTimer)
         self.timer.updatePart.connect(self.updateTimeDev)
 
@@ -190,13 +214,13 @@ class TraceHangersWindow(QMainWindow):
 
         layout.addLayout(hbox)
 
-        recordButton = QPushButton("START PROGRAM")
-        recordButton.clicked.connect(
-            lambda _:  self.startCycle(recordButton)
+        self.recordButton = QPushButton("START PROGRAM")
+        self.recordButton.clicked.connect(
+            lambda _:  self.startCycle(self.recordButton)
         )
-        stopBtn = QPushButton("STOP CYCLE")
-        stopBtn.clicked.connect(lambda _: self.stopUpdate(recordButton))
-        layout.addWidget(recordButton)
+        stopBtn = QPushButton("HOLD CYCLE")
+        stopBtn.clicked.connect(lambda _: self.stopUpdate(self.recordButton))
+        layout.addWidget(self.recordButton)
         layout.addWidget(stopBtn)
         self.update_conn_signal.connect(self.updateConn)
         self.update_table_signal.connect(self.updateTableCell)
@@ -244,7 +268,7 @@ class TraceHangersWindow(QMainWindow):
 
         if self.mainTable.rowCount() == 0:
             stopBtn.setDisabled(True)
-            recordButton.setDisabled(True)
+            self.recordButton.setDisabled(True)
             self.radioR1.setDisabled(True)
             self.radioR2.setDisabled(True)
 
@@ -417,8 +441,10 @@ class TraceHangersWindow(QMainWindow):
         #TODO: SIMPLIFY SIGNALS
         #Inician los coordinadores
         self.isListening = True
-        # if self.getReadyState(1):
-        #     self.startRobot1()
+        if self.getReadyState(1):
+            self.startRobot1()
+        self.stopProcessing = False
+        time.sleep(1.0)
         if self.getReadyState(2):
             self.startRobot2()
             button.setEnabled(False)
@@ -427,6 +453,7 @@ class TraceHangersWindow(QMainWindow):
 
         self.startTimer()
         self.ledR1Started.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
+        self.ledR2Stopped.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
 
     def getReadyState(self, robotNum):
         robot = self.robot1 if robotNum == 1 else self.robot2
@@ -434,43 +461,57 @@ class TraceHangersWindow(QMainWindow):
         if robot.home_all and robot.machine_ready and robot.machine_on and robot.program_idle:
             return True
         return False
+
     def startTimer(self):
-        self.timer.stop = False
+        self.timer.fullStop = False
+        self.timer.stopChecking = False
         self.timer.updateDryingParts()
         self.timer_thread.start()
 
     def startRobot1(self):
-        self.coordinator1Thread = QThread()
-        self.robot1Coordinator.moveToThread(self.coordinator1Thread)
-        self.coordinator1Thread.started.connect(self.robot1Coordinator.startCycle)
-        self.robot1Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
-        self.robot1Coordinator.programEnded.connect(self.updateTablePart)
-        self.robot1Coordinator.changedPart.connect(self.updateLastPart)
-        self.robot1Coordinator.updateTimeDev.connect(self.updateTimeDev)
-        self.robot1Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
-        self.robot1Coordinator.updateProgramPart.connect(self.updateTablePart)
-        self.robot1Coordinator.startPart.connect(self.startFirstPart)
-        self.robot1Coordinator.noPart.connect(self.clearHighlights)
-        self.robot1Coordinator.stop = False
+        self.robot1Coordinator.fullStop = False
+        self.robot1Coordinator.stopProcessing = False
         self.coordinator1Thread.start()
     
     def startRobot2(self):
-        self.coordinator2Thread = QThread()
-        self.robot2Coordinator.moveToThread(self.coordinator2Thread)
-        self.coordinator2Thread.started.connect(self.robot2Coordinator.startCycle)
-        self.robot2Coordinator.programRunning.connect(self.updateTablePart) #= pyqtSignal(str, str, str, str)
-        self.robot2Coordinator.programEnded.connect(self.updateTablePart)
-        self.robot2Coordinator.changedPart.connect(self.updateLastPart)
-        self.robot2Coordinator.updateTimeDev.connect(self.updateTimeDev)
-        self.robot2Coordinator.showPreliminarNextProgram.connect(self.updatePreliminarCharacteristics)
-        self.robot2Coordinator.updateProgramPart.connect(self.updateTablePart)
-        self.robot2Coordinator.startPart.connect(self.startFirstPart)
-        self.robot2Coordinator.noPart.connect(self.clearHighlights)
-        self.robot2Coordinator.stop = False
+        self.robot2Coordinator.fullStop = False
+        self.robot2Coordinator.stopProcessing = False
         self.coordinator2Thread.start()
 
+    def stopUpdate(self, recordButton: QPushButton):
+        self.isListening = False
+        self.ledR2Stopped.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
+        self.ledR1Started.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
+        recordButton.setEnabled(True)
+        #self.stopRobot1()
+        self.stopRobot2()
+        self.stopTimer()
+
+        self.recordButton.setEnabled(True)
+
+
+    def stopTimer(self):
+        self.timer.stopTimer()
+        # self.timer_thread.requestInterruption() # 1. Solicitar alto
+        # self.timer_thread.quit()                # 3. Salir del bucle de eventos
+        # self.timer_thread.wait()
+
+    def stopRobot1(self):
+        self.robot1Coordinator.stopProcessingCycle()
+        # self.robot1Coordinator.stopCycle()
+        # self.coordinator1Thread.requestInterruption() # 1. Solicitar alto
+        # self.coordinator1Thread.quit()                # 3. Salir del bucle de eventos
+        # self.coordinator1Thread.wait()
+    
+    def stopRobot2(self):
+        self.robot2Coordinator.stopProcessingCycle()
+        # self.robot2Coordinator.stopCycle()
+        # self.coordinator2Thread.requestInterruption() # 1. Solicitar alto
+        # self.coordinator2Thread.quit()                # 3. Salir del bucle de eventos
+        # self.coordinator2Thread.wait()
+
     def on_robot_selected(self):
-        print("SEÑAL RECIBIDA")  # ← ¿aparece esto?
+        print("SEÑAL RECIBIDA")
         selected = self.robotButtonGroup.checkedId()
         print(f"ID seleccionado: {selected}")
         if selected == 1:
@@ -480,7 +521,7 @@ class TraceHangersWindow(QMainWindow):
             self.queueManager.priority = 2
             print("Robot 2 seleccionado")
 
-#Deberia haber 10 hilosXD
+#Deberia haber 10 hilos
     @Slot(Part, Program)
     def updatePreliminarCharacteristics(self, part:Part, nextProgram:Program):
         self.update_table_signal.emit(
@@ -555,38 +596,33 @@ class TraceHangersWindow(QMainWindow):
                     CURDRY_COL,
                     str(currentTime)
                 )
- 
-    def stopUpdate(self, recordButton: QPushButton):
-        self.isListening = False
-        self.ledR2Stopped.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
-        self.ledR1Started.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
-        recordButton.setEnabled(True)
-        self.stopRobot1()
-        self.stopRobot2()
-        self.stopTimer()
 
-    def stopTimer(self):
-        self.timer_thread.requestInterruption() # 1. Solicitar alto
-        self.timer_thread.quit()                # 3. Salir del bucle de eventos
-        self.timer_thread.wait()
-
-    def stopRobot1(self):
-        self.robot1Coordinator.stopCycle()
-        self.coordinator1Thread.requestInterruption() # 1. Solicitar alto
-        self.coordinator1Thread.quit()                # 3. Salir del bucle de eventos
-        self.coordinator1Thread.wait()
-    
-    def stopRobot2(self):
-        self.robot2Coordinator.stopCycle()
-        self.coordinator2Thread.requestInterruption() # 1. Solicitar alto
-        self.coordinator2Thread.quit()                # 3. Salir del bucle de eventos
-        self.coordinator2Thread.wait()
+    @Slot(Part, Program)
+    def alarmPart(self, part, program):
+        cols = [*range(0, CURDRY_COL), *range(STATE_COL, DEV_COL+1)]
+        vals = [part.part_id, program.program_id, program.robot_num, program.min_drying_time, program.max_drying_time, \
+            program.state, program.start_date, program.start_time, program.end_time, program.run_time,  \
+                program.current_hanger, program.current_conveyor, program.time_deviation]
+        vals = [str(x) for x in vals]
+        rows = self.mainTable.rowCount()
+        for row in range(rows):
+            item = self.mainTable.item(row, 0)
+            if item and item.text() == part.part_id:
+                for column, value in  zip(cols, vals):
+                    newItem = QTableWidgetItem(str(value))
+                    newItem.setTextAlignment(Qt.AlignCenter)
+                    font = newItem.font()
+                    font.setPointSize(FONT_SIZE)
+                    newItem.setFont(font)
+                    newItem.setBackground(QtGui.QColor("red"))
+                    self.mainTable.setItem(row, column, newItem)
+                break
+        self.stopUpdate(self.recordButton)
 
     def adjustTableHeight(self, table):
         table.resizeRowsToContents()
 
         height = table.horizontalHeader().height()
-
         for row in range(table.rowCount()):
             height += table.rowHeight(row)
 
@@ -596,3 +632,8 @@ class TraceHangersWindow(QMainWindow):
         # small buffer to avoid clipping
         table.setMinimumHeight(height)
         table.setMaximumHeight(height)
+
+
+    def closeEvent(self, a0: QtGui.QCloseEvent):
+        print("CERRANDO CERRANDO CERRANDO CERRANDO CERRANDO CERRANDO")
+        return super().closeEvent(a0)

@@ -124,8 +124,8 @@ class Robot:
                     self.outputs.append(child)
                 elif "input" in name:
                     self.inputs.append(child)
-                else:
-                    print(f"{self.name}: No es output o input {name} {value}")
+                #else:
+                #    print(f"{self.name}: No es output o input {name} {value}")
                 
 
                 # Debug print
@@ -198,8 +198,8 @@ class Robot:
 
         v = self.reader_values
         #print(f"LEN: {len(self.reader_float)}")
-        print(f"{self.name}: INPUT VALUES {self.reader_values}")
-        print(f"{self.name}: FLOAT INPUT VALUES: {self.reader_float}")
+        #print(f"{self.name}: INPUT VALUES {self.reader_values}")
+        #print(f"{self.name}: FLOAT INPUT VALUES: {self.reader_float}")
         if len(v) >= 8:
 
             self.machine_ready = v[0]

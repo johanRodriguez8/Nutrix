@@ -10,7 +10,7 @@ from boton_main.trace_hangers.trace_hangers import TraceHangersWindow
 from boton_main.robot_main import MainRobotWindow
 
 class SubMainWindow(QWidget):
-    def __init__(self, robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, queueManager):
+    def __init__(self, robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, queueManager, thread1, thread2, timer_thread):
         super().__init__()
         self.layout = QVBoxLayout()
         label = QLabel("WELCOME TO MAIN")
@@ -20,9 +20,11 @@ class SubMainWindow(QWidget):
         self.tabs = QTabWidget()
         self.tabs.currentChanged.connect(self.onChange) 
         self.tabRobot = MainRobotWindow(robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator,partsTimer, queueManager)
+        self.tabRobot.setAttribute(Qt.WA_DeleteOnClose)
         #self.tabTrace = TraceHangersWindow(robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, queueManager)
         #self.tabTrace = TraceHangersWindow(robot1Coordinator,  partsTimer)  
-        self.tabTrace = TraceHangersWindow(robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, queueManager)
+        self.tabTrace = TraceHangersWindow(robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, 
+        queueManager, thread1, thread2, timer_thread)
 
         self.tabHistory = HistoryWindow(robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, queueManager)
         self.tabs.addTab(self.tabRobot, "ROBOT MAIN")

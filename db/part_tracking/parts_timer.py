@@ -13,7 +13,8 @@ class PartsTimer(QObject):
     def __init__(self):
         super().__init__()
         self.dryingParts = {}
-        self.stop = False
+        self.fullStop = False
+        self.stopChecking = False
     def updateDryingParts(self):
         parts = selectFromDB("SELECT part_id from currentParts where state='DRYING' or state='WAITING'")
         self.dryingParts = {}
@@ -32,54 +33,58 @@ class PartsTimer(QObject):
         secLeft = getSecondsBetween(now, diffMinTime)
         self.dryingParts[newPart] = secLeft
         
-    def checkTimer(self):
+    def timerCycle(self):
         try:
-            while not self.stop:
-                #TO MAKE SURE THE DIRECTORY DOESNT CHANGE BY OTHER THREADS
-                dryParts = self.dryingParts.copy()
-                #print("START CHECKING DRYING AND WAITING TIMES")
-                for part in dryParts:
-                    program = part.programs[part.current_step]
-                    diffMinTime, diffMaxTime = program.getEndTimes()
-                    #print(f"END MIN: {diffMinTime}")
-                    #print(f"END MAX: {diffMaxTime}") 
-                    now = datetime.now().strftime("%H:%M:%S")
-                    #SECONDS UNTIL MIN DRY
-                    secLeft = getSecondsBetween(now, diffMinTime)
-                    #print(f"SEC LEFT: {secLeft}")
-                    #SECONDS SINCE MIN DRY
-                    secSince = getSecondsBetween(program.end_time, now)
-                    auxSecSince = secondsToTime(secSince)
-                    #SECONDS UNTIL MAX DRY
-                    secToMax = getSecondsBetween(now, diffMaxTime)
-                    #print(f"SEC TO MAX: {secToMax}")
-                    self.dryingParts[part] = [str(auxSecSince), str(secLeft), str(secToMax)]
-                    self.updateTimer.emit(part.part_id, str(auxSecSince))
-                    #print(f"SECS LEFT: {secLeft}")
-                    if secLeft <= 0:
-                        if program.state != "WAITING" or program.state != "DONE":
-                            program.state = "WAITING"
-                        program.time_deviation = str("-" + secondsToTime(secLeft*-1)) if secToMax > 0 else str(secondsToTime(secToMax*-1))
-                        program.current_conveyor = program.conveyor_end
-                        program.current_hanger = program.hanger_end
-                        currentProgram = selectFromDB("SELECT program_id FROM currentParts WHERE part_id=?", (part.part_id, ))
-                        currentProgram = currentProgram[0][0]
-                        #NOTA: SI ESTA FLLANDO QUITAR ESTE IF, NO LO QUE CONTIENE
-                        if currentProgram == program.program_id:
-                            part.updateAll()
-                            self.updatePart.emit(part)
-                        else:
-                            print("CURRENT PARTS IS NOT THE SAME AS TIMER")
-                            print("IT SHOULD BE UPDATING IN OTHER THREAD AND NOT HAPPEN CONSECUTIVELY")
-                            print(f"CURRENT: {currentProgram} UPDATING: {program.program_id}")
-                        #if secToMax <= 10:
-                            #TODO: ADD PRIORITY ONCE IT IS DONE
-                #print("END CHECKING DRYING PARTS")
+            print("STARTING TIMER")
+            while not self.fullStop:
+                if not self.stopChecking:
+                    self.checkTimer()
                 sleep(WAITING_TIME)
         except Exception as e:
             self.connected = True
             print(f"ERROR: {e}")
 
+    def checkTimer(self):
+        #TO MAKE SURE THE DIRECTORY DOESNT CHANGE BY OTHER THREADS
+        dryParts = self.dryingParts.copy()
+        #print("START CHECKING DRYING AND WAITING TIMES")
+        for part in dryParts:
+            program = part.programs[part.current_step]
+            diffMinTime, diffMaxTime = program.getEndTimes()
+            #print(f"END MIN: {diffMinTime}")
+            #print(f"END MAX: {diffMaxTime}") 
+            now = datetime.now().strftime("%H:%M:%S")
+            #SECONDS UNTIL MIN DRY
+            secLeft = getSecondsBetween(now, diffMinTime)
+            #print(f"SEC LEFT: {secLeft}")
+            #SECONDS SINCE MIN DRY
+            secSince = getSecondsBetween(program.end_time, now)
+            auxSecSince = secondsToTime(secSince)
+            #SECONDS UNTIL MAX DRY
+            secToMax = getSecondsBetween(now, diffMaxTime)
+            #print(f"SEC TO MAX: {secToMax}")
+            self.dryingParts[part] = [str(auxSecSince), str(secLeft), str(secToMax)]
+            self.updateTimer.emit(part.part_id, str(auxSecSince))
+            #print(f"SECS LEFT: {secLeft}")
+            if secLeft <= 0:
+                if program.state != "WAITING" or program.state != "DONE":
+                    program.state = "WAITING"
+                program.time_deviation = str("-" + secondsToTime(secLeft*-1)) if secToMax > 0 else str(secondsToTime(secToMax*-1))
+                program.current_conveyor = program.conveyor_end
+                program.current_hanger = program.hanger_end
+                currentProgram = selectFromDB("SELECT program_id FROM currentParts WHERE part_id=?", (part.part_id, ))
+                currentProgram = currentProgram[0][0]
+                #NOTA: SI ESTA FLLANDO QUITAR ESTE IF, NO LO QUE CONTIENE
+                if currentProgram == program.program_id:
+                    part.updateAll()
+                    self.updatePart.emit(part)
+                else:
+                    print("CURRENT PARTS IS NOT THE SAME AS TIMER")
+                    print("IT SHOULD BE UPDATING IN OTHER THREAD AND NOT HAPPEN CONSECUTIVELY")
+                    print(f"CURRENT: {currentProgram} UPDATING: {program.program_id}")
+        #print("END CHECKING DRYING PARTS")
+                
+
     def stopTimer(self):
-        self.stop = True
-        print("Timer stopped and thread finished")
+        self.stopChecking = True
+        print("Stopped checking the timer")
