@@ -12,13 +12,14 @@ db_path = os.path.join(base_dir, 'db.db')
 
 def respaldar_base_datos():
     if os.path.exists(db_path):
+        timestamp = datetime.now().strftime('%Y%m%d')
         backup_filename = f'db_backup.db'
-        # Backup a carpeta compartida deshabilitado (solo en máquina de producción)
-        # shared_folder = '/home/numtek/Desktop/COMPARTIDA/backups'
-        # shared_backup_path = os.path.join(shared_folder, backup_filename)
-        # shutil.copyfile(db_path, shared_backup_path)
+        shared_folder = '/home/numtek/Desktop/COMPARTIDA/backups'
+        shared_backup_path = os.path.join(shared_folder, backup_filename)
+        shutil.copyfile(db_path, shared_backup_path)
         backup_path_local = os.path.join(backup_folder, backup_filename)
         shutil.copyfile(db_path, backup_path_local)
+
     else:
         print("⚠️ No se encontró la base de datos para respaldar.")
 

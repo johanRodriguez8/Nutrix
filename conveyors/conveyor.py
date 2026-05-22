@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QTableWidget,
     QTableWidgetItem, QHeaderView, QHBoxLayout, QInputDialog, QMessageBox,
-    QApplication, QTableWidget, QTableWidgetItem, QItemDelegate, QStyledItemDelegate
+    QApplication, QTableWidget, QTableWidgetItem, QItemDelegate, QStyledItemDelegate, QComboBox, QDialog
 )
 from PyQt5.QtCore import Qt, QModelIndex
 from conveyors.assign_part_window import AssignPartWindow
@@ -63,14 +63,16 @@ class TablaConveyor(QWidget):
                 seqId = selectFromDB("SELECT sequence_id FROM partNumbers WHERE part_num=? ", (part_num, ))
                 state = selectFromDB("SELECT state FROM currentParts WHERE part_id=?", (part_id, ))
                 item_seqId = QTableWidgetItem(seqId[0][0])
-                item_state = QTableWidgetItem(state[0][0])
-                if state[0][0] == "ALARM":
+                current_state = state[0][0]
+                item_state = QTableWidgetItem(current_state)
+                if current_state == "ALARM":
                     item_state.setBackground(QtGui.QColor("red"))
                 else:
                     item_state.setBackground(QtGui.QColor("#c8f7c5"))
             else:
                 item_seqId = QTableWidgetItem("-")
                 item_state = QTableWidgetItem("-")
+                current_state = None
 
             item_num = QTableWidgetItem(str(numero_hanger))
             display_status = status#"LOAD" if (no_parte and str(no_parte).strip()) else "EMPTY"
@@ -97,7 +99,48 @@ class TablaConveyor(QWidget):
             self.tabla.setItem(r, 4, item_order)
             self.tabla.setItem(r, 5, item_partNum)
             self.tabla.setItem(r, 6, item_seqId)
-            self.tabla.setItem(r, 7, item_state)
+
+            if status == "FULL" and current_state == "ALARM":
+                cell_state = QWidget()
+                cell_state.setStyleSheet("background-color: red;")
+                lay_state = QHBoxLayout(cell_state)
+                lay_state.setContentsMargins(8, 4, 8, 4)
+                lay_state.setAlignment(Qt.AlignCenter)
+
+                label_alarm = QLabel("ALARM")
+                label_alarm.setAlignment(Qt.AlignCenter)
+                font_label = label_alarm.font()
+                font_label.setPointSize(FONT_SIZE)
+                font_label.setBold(True)
+                label_alarm.setFont(font_label)
+                label_alarm.setStyleSheet("color: white; background-color: red;")
+
+                change_state_btn = QPushButton("✏")
+                font_btn = change_state_btn.font()
+                font_btn.setPointSize(int(FONT_SIZE * 0.7))
+                change_state_btn.setFont(font_btn)
+                btn_size = int(FONT_SIZE * 1.5)
+                change_state_btn.setFixedSize(btn_size, btn_size)
+                change_state_btn.setToolTip("Change state")
+                change_state_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #ffc107;
+                        color: black; font-weight: bold; border-radius: 3px;
+                        padding: 0px;
+                    }
+                    QPushButton:hover {
+                        background-color: #ffb300;
+                    }
+                """)
+                change_state_btn.clicked.connect(
+                    lambda _, pid=part_id: self.open_change_state_dialog(pid)
+                )
+
+                lay_state.addWidget(label_alarm)
+                lay_state.addWidget(change_state_btn)
+                self.tabla.setCellWidget(r, 7, cell_state)
+            else:
+                self.tabla.setItem(r, 7, item_state)
 
             btn_assign = QPushButton("UNASSIGN" if part_id!=None else "ASSIGN")
             font = btn_assign.font()
@@ -243,6 +286,46 @@ class TablaConveyor(QWidget):
         reassignWindow = ReassingWindow(hanger_num, self.conveyor, part_id)
         reassignWindow.exec()
         self.cargar_datos()
+
+    def update_part_state(self, part_id, new_state):
+        ejecutar_y_respaldar(
+            "UPDATE currentParts SET state=? WHERE part_id=?",
+            (new_state, part_id)
+        )
+        self.cargar_datos()
+
+    def open_change_state_dialog(self, part_id):
+        from PyQt5.QtWidgets import QDialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Change Part State")
+        dialog.setGeometry(100, 100, 300, 150)
+
+        layout = QVBoxLayout()
+        label = QLabel("Select new state:")
+        combo = QComboBox()
+        combo.addItems(["ALARM", "DRY"])
+        combo.setCurrentText("ALARM")
+
+        btn_layout = QHBoxLayout()
+        btn_ok = QPushButton("OK")
+        btn_cancel = QPushButton("Cancel")
+
+        btn_ok.clicked.connect(lambda: self.change_state_and_close(dialog, part_id, combo.currentText()))
+        btn_cancel.clicked.connect(dialog.reject)
+
+        btn_layout.addWidget(btn_ok)
+        btn_layout.addWidget(btn_cancel)
+
+        layout.addWidget(label)
+        layout.addWidget(combo)
+        layout.addLayout(btn_layout)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def change_state_and_close(self, dialog, part_id, new_state):
+        self.update_part_state(part_id, new_state)
+        dialog.accept()
         
 class SubventanaConveyor(QWidget):
     def __init__(self, conveyor):
