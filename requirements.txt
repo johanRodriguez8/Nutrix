@@ -1,0 +1,6 @@
+PyQt5
+pyqttoast
+opcua
+csv2pdf
+paramiko
+# linuxcnc  → NO se instala por pip. Ver nota abajo.

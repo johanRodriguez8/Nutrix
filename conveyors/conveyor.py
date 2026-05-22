@@ -242,6 +242,7 @@ class TablaConveyor(QWidget):
             return
         reassignWindow = ReassingWindow(hanger_num, self.conveyor, part_id)
         reassignWindow.exec()
+        self.cargar_datos()
         
 class SubventanaConveyor(QWidget):
     def __init__(self, conveyor):
