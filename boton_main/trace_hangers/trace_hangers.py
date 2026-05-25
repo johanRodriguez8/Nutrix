@@ -363,6 +363,9 @@ class TraceHangersWindow(QMainWindow):
 
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
 
+                if item.text() == 'ALARM' :
+                    item.setBackground(QtGui.QColor("red"))
+
                 self.mainTable.setItem(r, i, item)
             self.mainTable.resizeRowsToContents()
             self.adjustTableHeight(self.mainTable)

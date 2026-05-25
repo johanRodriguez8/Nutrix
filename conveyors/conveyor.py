@@ -292,18 +292,24 @@ class TablaConveyor(QWidget):
             "UPDATE currentParts SET state=? WHERE part_id=?",
             (new_state, part_id)
         )
+
+        ejecutar_y_respaldar(
+            "UPDATE currentParts SET state=? WHERE part_id=?",
+            (new_state, part_id)
+        )
+
         self.cargar_datos()
 
     def open_change_state_dialog(self, part_id):
         from PyQt5.QtWidgets import QDialog
         dialog = QDialog(self)
         dialog.setWindowTitle("Change Part State")
-        dialog.setGeometry(100, 100, 300, 150)
+        dialog.setGeometry(1000, 500, 300, 150)
 
         layout = QVBoxLayout()
         label = QLabel("Select new state:")
         combo = QComboBox()
-        combo.addItems(["ALARM", "DRY"])
+        combo.addItems(["ALARM", "DRYING"])
         combo.setCurrentText("ALARM")
 
         btn_layout = QHBoxLayout()
@@ -325,6 +331,7 @@ class TablaConveyor(QWidget):
 
     def change_state_and_close(self, dialog, part_id, new_state):
         self.update_part_state(part_id, new_state)
+        self.cargar_datos()
         dialog.accept()
         
 class SubventanaConveyor(QWidget):
