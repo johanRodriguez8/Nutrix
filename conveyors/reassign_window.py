@@ -92,9 +92,10 @@ class ReassingWindow(QDialog):
         )
 
         ejecutar_y_respaldar(
-            "UPDATE currentParts SET hanger_num = ?, current_conveyor = ? WHERE part_id = ?",
+            "UPDATE currentParts SET current_hanger = ?, current_conveyor = ? WHERE part_id = ?",
             (new_hanger, new_conveyor, self.part_id)
         )
+        
 
         ejecutar_y_respaldar(
             "UPDATE conveyors SET status = 'EMPTY', part_id = NULL, part_num = NULL, order_id = NULL WHERE hanger_num = ? AND conveyor = ?",

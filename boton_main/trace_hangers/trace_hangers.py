@@ -33,9 +33,12 @@ RUN_COL = END_COL+1
 # FROM_COL = HANGER_COL+1
 # TOHANGER_COL = FROM_COL+1
 # TO_COL = TOHANGER_COL+1
+
 CURHANG_COL = RUN_COL+1
 CURCONV_COL = CURHANG_COL+1
 DEV_COL = CURCONV_COL+1
+STEP_COL = DEV_COL+1
+SEQUENCE_COL = STEP_COL+1
 WAITING_TIME = 1 #seconds
 WAIT_LED_TIME = 10000 #ms
 class TraceHangersWindow(QMainWindow):
@@ -249,7 +252,7 @@ class TraceHangersWindow(QMainWindow):
         self.mainDelegate = MultiRowBorderDelegate(self.mainTable)
         self.mainTable.setItemDelegate(self.mainDelegate)
         titles = [
-                "PART ID", "PROGRAM", "ROBOT", "MIN DRY", "MAX DRY", "CURRENT DRY",
+                "PART ID", "PROGRAM", "ROBOT","SEQUENCE","STEP", "MIN DRY", "MAX DRY", "CURRENT DRY",
                 "STATE", "DATE", "START", "END", "RUN", "CUR HANG", "CUR CONV", "TIME DEV"
             ]
         self.mainTable.setColumnCount(len(titles))
@@ -258,7 +261,7 @@ class TraceHangersWindow(QMainWindow):
         self.mainTable.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         for col in range(self.mainTable.columnCount()):
             #header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
-            if col in [ID_COL, DATE_COL, STATE_COL, START_COL, END_COL, RUN_COL, DEV_COL, CURDRY_COL]:
+            if col in [ID_COL, DATE_COL, STATE_COL, START_COL, END_COL, RUN_COL, DEV_COL, CURDRY_COL, SEQUENCE_COL, STEP_COL]:
                 header.setSectionResizeMode(col, QHeaderView.Stretch)
             else:
                 header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
@@ -318,17 +321,33 @@ class TraceHangersWindow(QMainWindow):
             partNum = pieza[1]
             programs = selectFromDB(
                 """
-                SELECT program_id, min_drying_time, max_drying_time, 
+                SELECT program_id,part_num, min_drying_time, max_drying_time, 
                 robot_num, state, start_date, start_time, end_date, end_time,
                 run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end,
-                current_hanger, current_conveyor
+                current_hanger, current_conveyor, current_step
                 FROM currentParts
                 WHERE part_id=?
                 """,
                 (partId,)
             )
-            programId, minTime, maxTime, robot, state, start_date, start_time, end_date, end_time, \
-            run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end, current_hanger, current_conveyor = programs[0]
+            programId,part_num, minTime, maxTime, robot, state, start_date, start_time, end_date, end_time, \
+            run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end, current_hanger, current_conveyor, current_step = programs[0]
+
+            
+
+
+
+            sequence = selectFromDB(
+                """
+                SELECT sequence_id
+                FROM partNumbers
+                WHERE part_num=?;
+                """,
+                (part_num,)
+            )
+            print(part_num)
+
+            sequenceId = sequence[0][0] if sequence else ""
 
             self.mainTable.setRowHeight(r, FONT_SIZE * 2 + 10)
             statusItem =  QTableWidgetItem(state)
@@ -337,6 +356,8 @@ class TraceHangersWindow(QMainWindow):
                 QTableWidgetItem(partId),
                 QTableWidgetItem(programId),
                 QTableWidgetItem(str(robot)),
+                QTableWidgetItem(str(sequence)),
+                QTableWidgetItem(str(current_step)),
                 QTableWidgetItem(minTime),
                 QTableWidgetItem(maxTime),
                 currentItem,
