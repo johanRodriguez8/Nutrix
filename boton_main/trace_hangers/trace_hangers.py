@@ -17,30 +17,28 @@ from db.part_tracking.parts_timer import PartsTimer
 from db.part_tracking.program_queue_manager import ProgramQueueManager
 from robots.robot import Robot
 from robots.robot_loader import RobotLoader
-TIME_OUT = 300 #Tiempo que espera una conexion antes de desconectarse. Esta definida en segundos
-ID_COL = 0
-PROGRAM_COL = ID_COL+1
-ROBOT_COL = PROGRAM_COL+1
-MINDRY_COL = ROBOT_COL+1
-MAXDRY_COL = MINDRY_COL+1
-CURDRY_COL = MAXDRY_COL+1
-STATE_COL = CURDRY_COL+1
-DATE_COL = STATE_COL+1
-START_COL = DATE_COL+1
-END_COL = START_COL+1
-RUN_COL = END_COL+1
-# HANGER_COL = RUN_COL+1
-# FROM_COL = HANGER_COL+1
-# TOHANGER_COL = FROM_COL+1
-# TO_COL = TOHANGER_COL+1
 
-CURHANG_COL = RUN_COL+1
-CURCONV_COL = CURHANG_COL+1
-DEV_COL = CURCONV_COL+1
-STEP_COL = DEV_COL+1
-SEQUENCE_COL = STEP_COL+1
-WAITING_TIME = 1 #seconds
+TIME_OUT = 300 #Tiempo que espera una conexion antes de desconectarse. Esta definida en segundos
+
+ID_COL       = 0
+PROGRAM_COL  = 1
+ROBOT_COL    = 2
+SEQUENCE_COL = 3   
+STEP_COL     = 4  
+MINDRY_COL   = 5
+MAXDRY_COL   = 6
+CURDRY_COL   = 7
+STATE_COL    = 8
+DATE_COL     = 9
+START_COL    = 10
+END_COL      = 11
+RUN_COL      = 12
+CURHANG_COL  = 13
+CURCONV_COL  = 14
+DEV_COL      = 15
+WAITING_TIME = 1 
 WAIT_LED_TIME = 10000 #ms
+
 class TraceHangersWindow(QMainWindow):
 
     update_conn_signal = pyqtSignal(list)
@@ -260,8 +258,7 @@ class TraceHangersWindow(QMainWindow):
         header = self.mainTable.horizontalHeader()
         self.mainTable.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         for col in range(self.mainTable.columnCount()):
-            #header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
-            if col in [ID_COL, DATE_COL, STATE_COL, START_COL, END_COL, RUN_COL, DEV_COL, CURDRY_COL, SEQUENCE_COL, STEP_COL]:
+            if col in [ID_COL, DATE_COL, STATE_COL, START_COL, END_COL, RUN_COL, DEV_COL, CURDRY_COL]:
                 header.setSectionResizeMode(col, QHeaderView.Stretch)
             else:
                 header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
@@ -315,6 +312,13 @@ class TraceHangersWindow(QMainWindow):
 
         self.mainTable.setRowCount(len(piezas))
 
+        partecitas = selectFromDB(                
+            """
+                SELECT part_num
+                FROM partNumbers
+                """)
+        print(partecitas)
+
         for r, pieza in enumerate(piezas):
 
             partId = pieza[0]
@@ -333,8 +337,8 @@ class TraceHangersWindow(QMainWindow):
             programId,part_num, minTime, maxTime, robot, state, start_date, start_time, end_date, end_time, \
             run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end, current_hanger, current_conveyor, current_step = programs[0]
 
-            
 
+            print(partNum)
 
 
             sequence = selectFromDB(
@@ -356,7 +360,7 @@ class TraceHangersWindow(QMainWindow):
                 QTableWidgetItem(partId),
                 QTableWidgetItem(programId),
                 QTableWidgetItem(str(robot)),
-                QTableWidgetItem(str(sequence)),
+                QTableWidgetItem(str(sequenceId)),
                 QTableWidgetItem(str(current_step)),
                 QTableWidgetItem(minTime),
                 QTableWidgetItem(maxTime),
@@ -398,6 +402,8 @@ class TraceHangersWindow(QMainWindow):
         self.update_conn_signal.emit(
             [self.robot1.connected, self.robot2.connected]
         )
+
+
     def updateConn(self, states):
         leds = [self.ledR1, self.ledR2]
         for i, led in enumerate(leds):
@@ -434,10 +440,17 @@ class TraceHangersWindow(QMainWindow):
 
     @Slot(Part, Program)
     def updateTablePart(self, part:Part, program:Program):
-        cols = [*range(0, CURDRY_COL), *range(STATE_COL, DEV_COL+1)]
-        vals = [part.part_id, program.program_id, program.robot_num, program.min_drying_time, program.max_drying_time, \
-            program.state, program.start_date, program.start_time, program.end_time, program.run_time,  \
-                program.current_hanger, program.current_conveyor, program.time_deviation]
+        cols = [ID_COL, PROGRAM_COL, ROBOT_COL, MINDRY_COL, MAXDRY_COL,
+        STATE_COL, DATE_COL, START_COL, END_COL, RUN_COL,
+        CURHANG_COL, CURCONV_COL, DEV_COL]
+
+        vals = [part.part_id, program.program_id, program.robot_num,
+                program.min_drying_time, program.max_drying_time,
+                program.state, program.start_date, program.start_time,
+                program.end_time, program.run_time,
+                program.current_hanger, program.current_conveyor,
+                program.time_deviation]
+
         vals = [str(x) for x in vals]
         rows = self.mainTable.rowCount()
         for row in range(rows):
@@ -516,23 +529,12 @@ class TraceHangersWindow(QMainWindow):
 
     def stopTimer(self):
         self.timer.stopTimer()
-        # self.timer_thread.requestInterruption() # 1. Solicitar alto
-        # self.timer_thread.quit()                # 3. Salir del bucle de eventos
-        # self.timer_thread.wait()
-
+        
     def stopRobot1(self):
         self.robot1Coordinator.stopProcessingCycle()
-        # self.robot1Coordinator.stopCycle()
-        # self.coordinator1Thread.requestInterruption() # 1. Solicitar alto
-        # self.coordinator1Thread.quit()                # 3. Salir del bucle de eventos
-        # self.coordinator1Thread.wait()
-    
+
     def stopRobot2(self):
         self.robot2Coordinator.stopProcessingCycle()
-        # self.robot2Coordinator.stopCycle()
-        # self.coordinator2Thread.requestInterruption() # 1. Solicitar alto
-        # self.coordinator2Thread.quit()                # 3. Salir del bucle de eventos
-        # self.coordinator2Thread.wait()
 
     def on_robot_selected(self):
         print("SEÑAL RECIBIDA")
@@ -623,25 +625,33 @@ class TraceHangersWindow(QMainWindow):
 
     @Slot(Part, Program)
     def alarmPart(self, part, program):
-        cols = [*range(0, CURDRY_COL), *range(STATE_COL, DEV_COL+1)]
-        vals = [part.part_id, program.program_id, program.robot_num, program.min_drying_time, program.max_drying_time, \
-            program.state, program.start_date, program.start_time, program.end_time, program.run_time,  \
-                program.current_hanger, program.current_conveyor, program.time_deviation]
-        vals = [str(x) for x in vals]
-        rows = self.mainTable.rowCount()
-        for row in range(rows):
-            item = self.mainTable.item(row, 0)
-            if item and item.text() == part.part_id:
-                for column, value in  zip(cols, vals):
-                    newItem = QTableWidgetItem(str(value))
-                    newItem.setTextAlignment(Qt.AlignCenter)
-                    font = newItem.font()
-                    font.setPointSize(FONT_SIZE)
-                    newItem.setFont(font)
-                    newItem.setBackground(QtGui.QColor("red"))
-                    self.mainTable.setItem(row, column, newItem)
-                break
+        cols = [ID_COL, PROGRAM_COL, ROBOT_COL, MINDRY_COL, MAXDRY_COL,
+                STATE_COL, DATE_COL, START_COL, END_COL, RUN_COL,
+                CURHANG_COL, CURCONV_COL, DEV_COL]
+
+        vals = [part.part_id, program.program_id, program.robot_num,
+                program.min_drying_time, program.max_drying_time,
+                program.state, program.start_date, program.start_time,
+                program.end_time, program.run_time,
+                program.current_hanger, program.current_conveyor,
+                program.time_deviation]
+
+        row = self._find_row(part.part_id)  # si ya implementaste _find_row
+        if row is None:
+            return
+
+        for col, value in zip(cols, vals):
+            newItem = QTableWidgetItem(str(value))
+            newItem.setTextAlignment(Qt.AlignCenter)
+            font = newItem.font()
+            font.setPointSize(FONT_SIZE)
+            newItem.setFont(font)
+            newItem.setBackground(QtGui.QColor("red"))
+            self.mainTable.setItem(row, col, newItem)
+
         self.stopUpdate(self.recordButton)
+
+    
 
     def adjustTableHeight(self, table):
         table.resizeRowsToContents()

@@ -260,11 +260,6 @@ def init_currentParts_table():
         );
     """)
 def init_history_table():
-    #History of all the parts current and done
-    #start and end time in history
-    #are for each process not for each part
-    #start_time y start_date es el momento de 
-    #inicialización de la pieza
     ejecutar("""
         CREATE TABLE IF NOT EXISTS history (
             part_id TEXT DEFAULT NULL,
