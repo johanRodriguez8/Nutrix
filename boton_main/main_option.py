@@ -12,6 +12,8 @@ from boton_main.robot_main import MainRobotWindow
 class SubMainWindow(QWidget):
     def __init__(self, robot1, robot1Loader, robot2, robot2Loader, robot1Coordinator, robot2Coordinator, partsTimer, queueManager, thread1, thread2, timer_thread):
         super().__init__()
+
+        self.timer_thread = timer_thread 
         self.layout = QVBoxLayout()
         label = QLabel("WELCOME TO MAIN")
         label.setAlignment(Qt.AlignCenter)
@@ -34,11 +36,10 @@ class SubMainWindow(QWidget):
         self.setLayout(self.layout)
         #layout.addStretch()
     #@pyqtSlot()  
-    def onChange(self,i): #changed!
-        if i == 1: 
-            if not hasattr(self.tabTrace, "update_thread"):
-                self.tabTrace.loadLayout()
-            elif not self.tabTrace.update_thread.isRunning():
-                self.tabTrace.loadLayout()
+    def onChange(self, i):
+        if i == 1:
+            self.tabTrace.timer.updateDryingParts()  # solo refresca las partes
+            if not self.timer_thread.isRunning():
+                self.timer_thread.start()
         elif i == 2:
             self.tabHistory.loadLayout()

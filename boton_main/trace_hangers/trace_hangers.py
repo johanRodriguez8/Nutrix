@@ -86,6 +86,9 @@ class TraceHangersWindow(QMainWindow):
         self.timer.updateTimer.connect(self.updateCurrentTimer)
         self.timer.updatePart.connect(self.updateTimeDev)
 
+        self.timer.updateDryingParts()
+        self.timer_thread.start()
+
         self.robot1 = robot1
         self.robot1Loader = robot1Loader
         self.robot2 = robot2
@@ -276,6 +279,8 @@ class TraceHangersWindow(QMainWindow):
         self.radioR1.clicked.connect(self.on_robot_selected)
         self.radioR2.clicked.connect(self.on_robot_selected)
 
+        self.timer.updateDryingParts()
+
 
     def highlightProgram(self, partId, rowSearch=None, color="red"):
 
@@ -311,13 +316,6 @@ class TraceHangersWindow(QMainWindow):
     def loadDataOnTable(self, piezas):
 
         self.mainTable.setRowCount(len(piezas))
-
-        partecitas = selectFromDB(                
-            """
-                SELECT part_num
-                FROM partNumbers
-                """)
-        print(partecitas)
 
         for r, pieza in enumerate(piezas):
 
@@ -503,7 +501,8 @@ class TraceHangersWindow(QMainWindow):
         self.timer.fullStop = False
         self.timer.stopChecking = False
         self.timer.updateDryingParts()
-        self.timer_thread.start()
+        if not self.timer_thread.isRunning():
+            self.timer_thread.start()
 
     def startRobot1(self):
         self.robot1Coordinator.fullStop = False
@@ -529,7 +528,7 @@ class TraceHangersWindow(QMainWindow):
 
     def stopTimer(self):
         self.timer.stopTimer()
-        
+
     def stopRobot1(self):
         self.robot1Coordinator.stopProcessingCycle()
 
@@ -608,6 +607,10 @@ class TraceHangersWindow(QMainWindow):
                     STATE_COL,
                     str(program.state)
                 )
+
+        if program.state == "DRYING":
+            self.timer.addDryingPart(part) 
+
         #print(f"TIME DEV: {doneProgram.time_deviation}")
         self.update_table_signal.emit(
                     part.part_id,

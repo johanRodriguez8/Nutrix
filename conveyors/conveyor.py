@@ -55,7 +55,7 @@ class TablaConveyor(QWidget):
         conn.close()
 
         self.tabla.setRowCount(len(filas))
-        print(f'FILAAAAS {filas}')
+        #print(f'FILAAAAS {filas}')
         self.delegate = MultiRowBorderDelegate(self.tabla)
         self.tabla.setItemDelegate(self.delegate)
         for r, (hanger_id, numero_hanger, status, habilitado, part_id, part_num, order_id) in enumerate(filas):

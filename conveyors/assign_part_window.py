@@ -27,6 +27,7 @@ from utils.popups import defaultErrorToast
 class AssignPartWindow(QDialog):
     def __init__(self, numero_hanger, conveyor):
         super().__init__()
+
         self.hanger_num = numero_hanger
         self.conveyor = conveyor
         self.setWindowTitle("ADD PART")
@@ -60,9 +61,19 @@ class selectPartNumWindow(QWidget):
         self.conveyor = conveyor
         rawPartNum = selectFromDB(
             """
-            SELECT part_num
-            FROM partNumbers
-            ORDER BY part_num """
+                SELECT DISTINCT pn.part_num
+                FROM partNumbers pn
+                JOIN sequences s ON pn.sequence_id = s.sequence_id
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM sequences s2
+                    JOIN programs p ON s2.program_id = p.program_id
+                    WHERE s2.sequence_id = s.sequence_id
+                    AND p.conveyor_start != ?
+                )
+                ORDER BY pn.part_num
+            """,
+            (conveyor,)
         )
 
         rawOrder = selectFromDB(
@@ -100,17 +111,18 @@ class selectPartNumWindow(QWidget):
         self.setLayout(self.layout)
 
     def addPartToConv(self):
-        # TODO: ADD WORK ORDER TO TABLE
         if hasattr(self, "partNumBox"):
             partNum = self.partNumBox.currentText()
-        if hasattr(self, "workOrderBox"):
-            workOrder = self.workOrderBox.currentText()
+        else:
+            return
+        
+        workOrder = self.workOrderBox.currentText() if hasattr(self, "workOrderBox") else None
+
         newId = getNewId()
         fecha, hora = getDateTime()
-        parte = Part(newId, self.hanger_num, self.conveyor, partNum, fecha, hora)
+        parte = Part(newId, self.hanger_num, self.conveyor, partNum, fecha, hora, workOrder)
         self.close()
         self.closeFunc()
-
 
 class writePartNumWindow(QWidget):
     def __init__(self, numero_hanger, conveyor, closeFunct):
