@@ -27,7 +27,6 @@ from utils.popups import defaultErrorToast
 class AssignPartWindow(QDialog):
     def __init__(self, numero_hanger, conveyor):
         super().__init__()
-
         self.hanger_num = numero_hanger
         self.conveyor = conveyor
         self.setWindowTitle("ADD PART")
@@ -61,19 +60,11 @@ class selectPartNumWindow(QWidget):
         self.conveyor = conveyor
         rawPartNum = selectFromDB(
             """
-                SELECT DISTINCT pn.part_num
-                FROM partNumbers pn
-                JOIN sequences s ON pn.sequence_id = s.sequence_id
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM sequences s2
-                    JOIN programs p ON s2.program_id = p.program_id
-                    WHERE s2.sequence_id = s.sequence_id
-                    AND p.conveyor_start != ?
-                )
-                ORDER BY pn.part_num
+            SELECT DISTINCT part_num
+            FROM partNumbers
+            ORDER BY part_num
             """,
-            (conveyor,)
+            # (conveyor,)
         )
 
         rawOrder = selectFromDB(

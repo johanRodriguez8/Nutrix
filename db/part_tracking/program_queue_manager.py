@@ -215,15 +215,19 @@ class ProgramQueueManager():
         if program.program_id in self.aToa:
             hanger_end = program.hanger_num
             conveyor_end = 'A'
+            print('pasando de A a A')
         elif program.program_id in self.aTob:
             conveyor_end = 'B'
             hanger_end = self.getClosestEmptyHanger(conveyor_end)
+            print('pasando de A a B')
         elif program.program_id in self.bToc:
             conveyor_end = 'C'
             hanger_end = self.getClosestEmptyHanger(conveyor_end)
+            print('pasando de B a C')
         elif program.program_id in self.cToc:
             hanger_end = program.hanger_num
             conveyor_end = 'C' 
+            print('pasando de C a C')
         elif program.program_id in self.cTod:
             conveyor_end = 'D'
             hanger_end = self.getClosestEmptyHanger(conveyor_end)
@@ -243,10 +247,14 @@ class ProgramQueueManager():
         else:
             print("INVALID HANGER")
             return
+        print(f'current hanger {currentHanger}')
+
         #TODO: VERIFY SELECTION IN COORDINATOR AND MANAGER IF THERE IS NOT NEXT PROGRAM
         hangers = selectFromDB("SELECT hanger_num, status FROM conveyors WHERE conveyor=? AND status='EMPTY' ", (conveyor, ))
+        
         shortestDist = self.getDistFromConveyor(currentHanger, hangers[0][0], conveyor)
         shortestIndex = 0    
+
         for i, (hanger_num, status) in enumerate(hangers):
             distance = self.getDistFromConveyor(currentHanger, hanger_num, conveyor)
             if distance < shortestDist:

@@ -163,6 +163,10 @@ class VentanaPrincipal(QMainWindow):
             widget = widget_class(*args) if args else widget_class()
             self.ventanas[nombre] = widget
             self.stack.addWidget(widget)
+        
+        if isinstance(widget, SubventanaConveyor) and "MAIN" in self.ventanas:
+            main_win = self.ventanas["MAIN"]
+            widget.datos_actualizados.connect(main_win.tabTrace.loadLayout)
 
         # Optional hook
         if hasattr(widget, "on_show"):

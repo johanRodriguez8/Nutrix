@@ -8,6 +8,9 @@ from conveyors.assign_part_window import AssignPartWindow
 from PyQt5 import QtGui
 import sqlite3
 from PyQt5.QtWidgets import QApplication, QMessageBox
+
+from PyQt5.QtCore import Qt, QModelIndex, pyqtSignal
+
 import copy
 from db.database import ejecutar_y_respaldar, db_path, selectFromDB
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, LEN_SIZE, getDateTime, getNewId
@@ -15,6 +18,8 @@ from db.part_tracking.part import Part
 from conveyors.reassign_window import ReassingWindow
 
 class TablaConveyor(QWidget):
+    datos_actualizados = pyqtSignal()
+
     def __init__(self, conveyor):
         self.conveyor = conveyor
         super().__init__()
@@ -241,6 +246,7 @@ class TablaConveyor(QWidget):
             return
         #ASSIGN CASE
         self.assignPartToHanger(numero_hanger=numero_hanger)
+        self.datos_actualizados.emit()
 
     def assignPartToHanger(self, numero_hanger):
         partWind = AssignPartWindow(numero_hanger, self.conveyor)
@@ -258,6 +264,7 @@ class TablaConveyor(QWidget):
             #part.endPart()
             part.deletePart(part_actual, numero_hanger, self.conveyor)
             self.cargar_datos()
+            self.datos_actualizados.emit()
         
     def toggle_enabled(self, numero_hanger: int, enable: int):
         new_enable = 0 if enable else 1
@@ -275,6 +282,7 @@ class TablaConveyor(QWidget):
                 (new_enable, numero_hanger, self.conveyor)
             )
             self.cargar_datos()
+            self.datos_actualizados.emit()
 
     def reassign(self, enable, hanger_num, part_id):
         if not enable:
@@ -287,6 +295,7 @@ class TablaConveyor(QWidget):
         reassignWindow = ReassingWindow(hanger_num, self.conveyor, part_id)
         reassignWindow.exec()
         self.cargar_datos()
+        self.datos_actualizados.emit()
 
     def update_part_state(self, part_id, new_state):
         ejecutar_y_respaldar(
@@ -334,8 +343,11 @@ class TablaConveyor(QWidget):
         self.update_part_state(part_id, new_state)
         self.cargar_datos()
         dialog.accept()
+        self.datos_actualizados.emit()
         
 class SubventanaConveyor(QWidget):
+    datos_actualizados = pyqtSignal()
+    
     def __init__(self, conveyor):
         super().__init__()
         self.conveyor = conveyor
@@ -384,6 +396,8 @@ class SubventanaConveyor(QWidget):
             return
 
         self.win = TablaConveyor(self.conveyor)
+        self.win.datos_actualizados.connect(self.datos_actualizados) 
+        app.setProperty('ventana_secundaria', self.win)
         app.setProperty('ventana_secundaria', self.win)
         self.win.destroyed.connect(lambda: app.setProperty('ventana_secundaria', None))
         self.win.show()

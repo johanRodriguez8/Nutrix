@@ -224,8 +224,16 @@ class TraceHangersWindow(QMainWindow):
         )
         stopBtn = QPushButton("HOLD CYCLE")
         stopBtn.clicked.connect(lambda _: self.stopUpdate(self.recordButton))
+
+        kill_thread_btn = QPushButton("KILL THREAD")
+        kill_thread_btn.clicked.connect(
+            lambda _:  print('xd'))
+
         layout.addWidget(self.recordButton)
         layout.addWidget(stopBtn)
+        layout.addWidget(kill_thread_btn)
+
+
         self.update_conn_signal.connect(self.updateConn)
         self.update_table_signal.connect(self.updateTableCell)
         # ---------- TIMER FOR LED UPDATE ----------
@@ -519,12 +527,17 @@ class TraceHangersWindow(QMainWindow):
         self.ledR2Stopped.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
         self.ledR1Started.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
         recordButton.setEnabled(True)
-        #self.stopRobot1()
+        self.stopRobot1()
         self.stopRobot2()
         self.stopTimer()
 
         self.recordButton.setEnabled(True)
 
+    #def restart_robot_1(self):
+
+
+    def kill_program_thread(self):
+        pass
 
     def stopTimer(self):
         self.timer.stopTimer()
@@ -536,15 +549,11 @@ class TraceHangersWindow(QMainWindow):
         self.robot2Coordinator.stopProcessingCycle()
 
     def on_robot_selected(self):
-        print("SEÑAL RECIBIDA")
         selected = self.robotButtonGroup.checkedId()
-        print(f"ID seleccionado: {selected}")
         if selected == 1:
             self.queueManager.priority = 1
-            print("Robot 1 seleccionado")
         elif selected == 2:
             self.queueManager.priority = 2
-            print("Robot 2 seleccionado")
 
 #Deberia haber 10 hilos
     @Slot(Part, Program)

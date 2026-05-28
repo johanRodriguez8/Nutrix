@@ -293,29 +293,29 @@ class RobotCoordinator(QObject):
         time.sleep(1)
         if program.conveyor_end == 'A':
             isOk = self.robot1.convAOk
-            #print(f"ENTRO CONV A isOk: {isOk}")
+            print(f"ENTRO CONV A isOk: {isOk}")
         elif program.conveyor_end == 'B':
             isOk = self.robot1.convBOk
-            #print(f"ENTRO CONV B isOk: {isOk}")
+            print(f"ENTRO CONV B isOk: {isOk}")
         elif program.conveyor_end == 'C':
             isOk = self.robot2.convCOk
-            #print(f"ENTRO CONV C isOk: {isOk}")
+            print(f"ENTRO CONV C isOk: {isOk}")
         elif program.conveyor_end == 'D':
             isOk = self.robot2.convDOk
-            #print(f"ENTRO CONV D isOk: {isOk}")
+            print(f"ENTRO CONV D isOk: {isOk}")
         else:
             self.dc.print(f"ERROR HANGER END: CONVEYOR NO VALIDO {program.conveyor_end}", self.robotNum)
             return
         while not isOk:
             if program.conveyor_end == 'A':
                 isOk = self.robot1.convAOk
-                #print(f"ENTRO CONV A isOk: {isOk}")
+                print(f"ENTRO CONV A isOk: {isOk}")
             elif program.conveyor_end == 'B':
                 isOk = self.robot1.convBOk
-                #print(f"ENTRO CONV B isOk: {isOk}")
+                print(f"ENTRO CONV B isOk: {isOk}")
             elif program.conveyor_end == 'C':
                 isOk = self.robot2.convCOk
-                #print(f"ENTRO CONV C isOk: {isOk}")
+                print(f"ENTRO CONV C isOk: {isOk}")
             elif program.conveyor_end == 'D':
                 isOk = self.robot2.convDOk
             time.sleep(WAIT_UPDATE_TIME)
