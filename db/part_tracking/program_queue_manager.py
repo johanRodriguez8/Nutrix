@@ -100,9 +100,13 @@ class ProgramQueueManager():
             auxPart = part
             programa = auxPart.getCurrentProgram()
             nextProgram = self.getNextProgram(auxPart)
-            #Si el programa no ha corrido
-            if (programa.robot_num == robotNum and programa.state != "WAITING") or \
-                (nextProgram.robot_num == robotNum and programa.state == "WAITING"): #Si le pertenece al robot
+            #Si la pieza espera, le pertenece al robot del siguiente programa; en la última
+            #etapa no hay siguiente, así que le pertenece al robot del programa actual.
+            if programa.state == "WAITING":
+                ownerRobot = nextProgram.robot_num if nextProgram else programa.robot_num
+            else:
+                ownerRobot = programa.robot_num
+            if ownerRobot == robotNum: #Si le pertenece al robot
                 if self.isInConvB(part) and self.priority != robotNum:
                     continue
                 distance = self.getDistance(part)
@@ -199,6 +203,7 @@ class ProgramQueueManager():
         else:
             self.dc.print(f"R{robotNum}: TERMINO EL ÚLTIMO PROGRAMA PART: {part.part_id}", robotNum)
             part.endPart()
+            return #La pieza terminó; no se vuelve a escribir en currentParts
 
         part.updateAll() #Actualización en base de datos
 

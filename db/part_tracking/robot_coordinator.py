@@ -189,6 +189,17 @@ class RobotCoordinator(QObject):
                     self.dc.print(f"R{self.robotNum}: ENTRO UNA PIEZA EN WAITING", self.robotNum)
                 #Obtenemos el siguiente programa
                 nextProgram = self.queueManager.getNextProgram(self.currentPart)
+                if nextProgram is None:
+                    #Última etapa: la pieza ya llegó a su destino final, solo se termina y se libera el robot
+                    self.dc.print(f"R{self.robotNum}: ÚLTIMA ETAPA, TERMINANDO PIEZA {self.currentPart.part_id}", self.robotNum)
+                    self.queueManager.passToNextProgram(self.currentPart, self.robotNum)
+                    self.updateProgramPart.emit(self.currentPart, self.currentPart.getCurrentProgram())
+                    self.timer.updateDryingParts()
+                    if self.robotNum == 1:
+                        self.queueManager.currentPartRobot1 = None
+                    else:
+                        self.queueManager.currentPartRobot2 = None
+                    return
                 if self.robotNum == robotToDebug:
                     self.dc.print(f"R{self.robotNum}: NEXT PROGRAM: {nextProgram.program_id} START: {nextProgram.hanger_num} {nextProgram.conveyor_start} END: {nextProgram.hanger_end}{nextProgram.conveyor_end}", self.robotNum)
                 self.showPreliminarNextProgram.emit(self.currentPart, nextProgram)

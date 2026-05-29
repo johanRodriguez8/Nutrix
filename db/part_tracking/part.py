@@ -143,7 +143,7 @@ class Part():
         """, (self.part_id,))
         ejecutar_y_respaldar("""
         DELETE FROM currentParts WHERE part_id=?
-        """, (self.part_id))
+        """, (self.part_id,))
 
         status = 0
 
