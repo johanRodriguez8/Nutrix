@@ -103,23 +103,16 @@ class ProgramQueueManager():
             #Si el programa no ha corrido
             if (programa.robot_num == robotNum and programa.state != "WAITING") or \
                 (nextProgram.robot_num == robotNum and programa.state == "WAITING"): #Si le pertenece al robot
-                if self.isInConvB(part) and self.priority == robotNum: #Si el conveyor B le pertenece a este robot o a ninguno
-                    distance = self.getDistance(part)
-                    if shortestDist == None:
-                        shortestDist = distance
-                        highestPriorityIndex = i
-                    elif distance < shortestDist:
-                        shortestDist = distance
-                        highestPriorityIndex = i
-                else:
-                    distance = self.getDistance(part)
-                    self.dc.print(f"R{robotNum}:  {auxPart.part_id} PROGRAM: {programa.program_id} STATE: {programa.state} DIST: {distance}", robotNum)
-                    if shortestDist == None:
-                        shortestDist = distance
-                        highestPriorityIndex = i
-                    elif distance < shortestDist:
-                        shortestDist = distance
-                        highestPriorityIndex = i
+                if self.isInConvB(part) and self.priority != robotNum:
+                    continue
+                distance = self.getDistance(part)
+                self.dc.print(f"R{robotNum}:  {auxPart.part_id} PROGRAM: {programa.program_id} STATE: {programa.state} DIST: {distance}", robotNum)
+                if shortestDist == None:
+                    shortestDist = distance
+                    highestPriorityIndex = i
+                elif distance < shortestDist:
+                    shortestDist = distance
+                    highestPriorityIndex = i
 
         if highestPriorityIndex == -1:
             return None
