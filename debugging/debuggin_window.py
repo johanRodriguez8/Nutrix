@@ -142,10 +142,10 @@ class SubVentanaDebug(QWidget):
                 ejecutar_y_respaldar( """
                 UPDATE history SET state = ?, start_date = ?,
                 start_time = ?, end_date = ?, end_time = ?, run_time = ?,
-                station = ?, time_deviation=? WHERE part_id=? and program_id=?
+                station = ?, time_deviation=? WHERE part_id=? and step=?
                 """,
-                (programAux.state, programAux.start_date, programAux.start_time, programAux.end_date, 
-                programAux.end_time, programAux.run_time, programAux.station, programAux.time_deviation, part.part_id, program.program_id)
+                (programAux.state, programAux.start_date, programAux.start_time, programAux.end_date,
+                programAux.end_time, programAux.run_time, programAux.station, programAux.time_deviation, part.part_id, program.step)
                 )
                 if program.step == "1" or program.step == 1:
 

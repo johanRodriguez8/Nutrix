@@ -1,10 +1,10 @@
 from utils.helpers import addTimes, getSecondsBetween, formatToTime, isFormat, getDateTime
 from db.database import selectFromDB, ejecutar_y_respaldar
 class Program():
-    def __init__(self, programId=None, partId=None):
+    def __init__(self, programId=None, partId=None, step=None):
         self.part_id = partId
         self.program_id  = programId
-        self.step = None
+        self.step = step
         self.robot_num = None
         self.min_drying_time = None
         self.max_drying_time = None
@@ -33,12 +33,12 @@ class Program():
                 self.path = dato[0][0]
                 self.conveyor_start = dato[0][1]
                 self.conveyor_end = dato[0][2]
-        if partId and programId:
+        if partId and step is not None:
             datos  = selectFromDB("""
-            SELECT step, program_id, robot_num, min_drying_time, max_drying_time, 
+            SELECT step, program_id, robot_num, min_drying_time, max_drying_time,
             state, start_date, start_time, end_date, end_time, run_time, hanger_num,
-            hanger_end, conveyor_start, conveyor_end, time_deviation, order_id FROM history WHERE part_id=? and program_id=?
-            """, (partId, programId))
+            hanger_end, conveyor_start, conveyor_end, time_deviation, order_id FROM history WHERE part_id=? AND step=?
+            """, (partId, step))
             if datos:
                 self.setData(*datos[0])
 

@@ -59,14 +59,14 @@ class Part():
             max_drying_time = ?, state = ?, start_date = ?,
             start_time = ?, end_date = ?, end_time = ?, run_time = ?,
             station = ?, hanger_id = ?, hanger_num = ?, hanger_end = ?,
-            conveyor_start = ?, conveyor_end = ?, time_deviation = ? 
-            WHERE part_id=? and program_id=?
+            conveyor_start = ?, conveyor_end = ?, time_deviation = ?
+            WHERE part_id=? and step=?
             """,
             ( program.program_id,
-        program.robot_num, program.min_drying_time, program.max_drying_time, program.state, 
-        program.start_date, program.start_time, program.end_date, 
-        program.end_time, program.run_time, program.station, program.hanger_id, 
-        program.hanger_num, program.hanger_end, program.conveyor_start, program.conveyor_end, program.time_deviation, self.part_id, program.program_id)
+        program.robot_num, program.min_drying_time, program.max_drying_time, program.state,
+        program.start_date, program.start_time, program.end_date,
+        program.end_time, program.run_time, program.station, program.hanger_id,
+        program.hanger_num, program.hanger_end, program.conveyor_start, program.conveyor_end, program.time_deviation, self.part_id, program.step)
         )
 
     def updatePartsHangers(self):
@@ -172,8 +172,8 @@ class Part():
         program = self.getCurrentProgram()
         program.time_deviation = timeDev
         ejecutar_y_respaldar("""
-        UPDATE history SET time_deviation=? WHERE part_id=? AND program_id=?
-        """, (timeDev, self.part_id, program.program_id))
+        UPDATE history SET time_deviation=? WHERE part_id=? AND step=?
+        """, (timeDev, self.part_id, program.step))
 
     def init_part_in_history(self, part_id):
         #Inicializa toda la información de los programas de una secuencia
@@ -230,8 +230,8 @@ class Part():
             """, (self.part_id,))
         if part_num:
             programs  = selectFromDB("""
-            SELECT program_id, min_drying_time, max_drying_time, step, conveyor_start, 
-            hanger_num, state FROM history WHERE part_id=?
+            SELECT program_id, min_drying_time, max_drying_time, step, conveyor_start,
+            hanger_num, state FROM history WHERE part_id=? ORDER BY step
             """, (self.part_id, ))
             self.part_num = part_num[0][0]
             if part_num[0][1] == 0:
@@ -246,7 +246,7 @@ class Part():
             self.programs = []
             for r, (programId, minTime, maxTime, step, conveyor, hanger_num, state) in enumerate(programs):
                 # #TODO: Para reiniciar quita los argumentos, el sistema trackea por medio de estados.
-                currentProgram = Program(programId, self.part_id)
+                currentProgram = Program(programId, self.part_id, step)
                 self.programs.append(currentProgram)
             
             if current_part and (current_part[0][0] == self.programs[self.current_step].program_id):

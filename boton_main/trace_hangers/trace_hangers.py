@@ -446,11 +446,12 @@ class TraceHangersWindow(QMainWindow):
 
     @Slot(Part, Program)
     def updateTablePart(self, part:Part, program:Program):
-        cols = [ID_COL, PROGRAM_COL, ROBOT_COL, MINDRY_COL, MAXDRY_COL,
+        cols = [ID_COL, PROGRAM_COL, ROBOT_COL, STEP_COL, MINDRY_COL, MAXDRY_COL,
         STATE_COL, DATE_COL, START_COL, END_COL, RUN_COL,
         CURHANG_COL, CURCONV_COL, DEV_COL]
 
         vals = [part.part_id, program.program_id, program.robot_num,
+                part.current_step + 1,
                 program.min_drying_time, program.max_drying_time,
                 program.state, program.start_date, program.start_time,
                 program.end_time, program.run_time,
