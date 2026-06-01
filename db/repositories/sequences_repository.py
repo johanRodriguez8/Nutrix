@@ -1,4 +1,3 @@
-"""All SQL touching the ``sequences`` table."""
 from db.connection import db
 
 

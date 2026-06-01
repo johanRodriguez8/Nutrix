@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMessageBox
 from utils.helpers import getDateTime, getNewId
-from db.part_tracking.part import Part
+from db.part_tracking.parts_service import create_part
 from db.repositories import part_numbers_repo, work_orders_repo
 from utils.popups import defaultErrorToast
 
@@ -102,7 +102,7 @@ class selectPartNumWindow(QWidget):
 
         newId = getNewId()
         fecha, hora = getDateTime()
-        parte = Part(newId, self.hanger_num, self.conveyor, partNum, fecha, hora, workOrder)
+        parte = create_part(newId, self.hanger_num, self.conveyor, partNum, fecha, hora, workOrder)
         self.close()
         self.closeFunc()
 
@@ -171,7 +171,7 @@ class writePartNumWindow(QWidget):
             fecha, hora = getDateTime()
 
             try:
-                parte = Part(
+                parte = create_part(
                     newId, self.hanger_num, self.conveyor, partNum, fecha, hora, workOrder
                 )
                 print("PART ADDED")

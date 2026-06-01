@@ -1,6 +1,7 @@
 from db.repositories import current_parts_repo, conveyors_repo
 from db.part_tracking.program import Program
 from db.part_tracking.part import Part
+from db.part_tracking.parts_service import load_part
 from db.part_tracking.parts_timer import PartsTimer
 from robots.robot import Robot
 import copy
@@ -163,7 +164,7 @@ class ProgramQueueManager():
         self.mainQueue = []
         self.dryingList = []
         for partId in currentParts:
-            newPart = Part(partId[0])
+            newPart = load_part(partId[0])
             if newPart is None:
                 print(f"ERROR: Part({partId[0]}) returned None")
                 continue

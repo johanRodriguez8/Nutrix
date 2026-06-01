@@ -1,4 +1,3 @@
-"""All SQL touching the ``workOrders`` table."""
 from db.connection import db
 
 

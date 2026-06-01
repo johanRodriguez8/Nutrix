@@ -1,4 +1,3 @@
-"""All SQL touching the ``history`` table."""
 from db.connection import db
 
 

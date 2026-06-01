@@ -8,7 +8,7 @@ import paramiko
 import re
 import platform
 import subprocess
-from db.part_tracking.part import Part
+from db.part_tracking.parts_service import load_part, create_part
 from db.database import print_sqlite_table, init_users_table, init_programs_table, init_sequences_table, init_conveyors_tables, init_parts_table, init_partNumbers_table, init_currentParts_table, init_history_table
 from db.connection import db
 from db.repositories import conveyors_repo, history_repo, current_parts_repo, parts_repo
@@ -129,7 +129,7 @@ class SubVentanaDebug(QWidget):
         partsId = history_repo.distinct_part_ids()
 
         for partId in partsId:
-            part = Part(partId[0])
+            part = load_part(partId[0])
             for program in part.programs:
                 programAux = Program()
                 history_repo.reset_step(
@@ -163,7 +163,7 @@ class SubVentanaDebug(QWidget):
 
             newId = getNewId()
             fecha, hora = getDateTime()
-            parte = Part(newId, i+1, "A", (i%4)+1, fecha, hora, "WO00100")
+            parte = create_part(newId, i+1, "A", (i%4)+1, fecha, hora, "WO00100")
 
 class DualConsole:
     def __init__(self):

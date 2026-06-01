@@ -1,5 +1,6 @@
 from db.repositories import current_parts_repo
 from db.part_tracking.part  import Part
+from db.part_tracking.parts_service import load_part
 from db.part_tracking.program  import Program
 import threading
 from PyQt5.QtCore import QObject,  pyqtSignal as Signal, pyqtSlot as Slot
@@ -24,7 +25,7 @@ class PartsTimer(QObject):
         parts = current_parts_repo.drying_or_waiting_ids()
         new_dict = {}
         for partId in parts:
-            currentPart = Part(partId[0])
+            currentPart = load_part(partId[0])
             endTime, maxEndTime = currentPart.getCurrentProgram().getEndTimes()
             now = datetime.now().strftime("%H:%M:%S")
             secSince = getSecondsBetween(endTime, now)

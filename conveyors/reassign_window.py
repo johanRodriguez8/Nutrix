@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import  QMessageBox
 from utils.helpers import getDateTime, getNewId
-from db.part_tracking.part import Part
 from db.repositories import parts_repo, current_parts_repo, conveyors_repo
 
 class ReassingWindow(QDialog):

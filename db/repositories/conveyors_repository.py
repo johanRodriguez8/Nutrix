@@ -1,4 +1,3 @@
-"""All SQL touching the ``conveyors`` table."""
 from db.connection import db
 
 

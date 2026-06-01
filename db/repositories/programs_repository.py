@@ -1,4 +1,3 @@
-"""All SQL touching the ``programs`` table."""
 from db.connection import db
 
 

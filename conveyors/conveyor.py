@@ -13,7 +13,7 @@ from PyQt5.QtCore import Qt, QModelIndex, pyqtSignal
 import copy
 from db.repositories import conveyors_repo, part_numbers_repo, current_parts_repo
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, LEN_SIZE, getDateTime, getNewId
-from db.part_tracking.part import Part 
+from db.part_tracking.parts_service import delete_part
 from conveyors.reassign_window import ReassingWindow
 
 class TablaConveyor(QWidget):
@@ -250,9 +250,7 @@ class TablaConveyor(QWidget):
                 QMessageBox.Yes | QMessageBox.No
             )
         if resp == QMessageBox.Yes:
-            part = Part()
-            #part.endPart()
-            part.deletePart(part_actual, numero_hanger, self.conveyor)
+            delete_part(part_actual, numero_hanger, self.conveyor)
             self.cargar_datos()
             self.datos_actualizados.emit()
         

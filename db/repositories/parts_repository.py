@@ -1,4 +1,3 @@
-"""All SQL touching the ``parts`` table."""
 from db.connection import db
 
 
