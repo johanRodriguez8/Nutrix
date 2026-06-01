@@ -1,99 +1,31 @@
 import sqlite3
-import os
-import shutil
-from datetime import datetime
-from config import settings
+from db.connection import db, DB_PATH
 
-base_dir = os.path.dirname(__file__)
-#db_folder = os.path.join(base_dir, 'db')
-backup_folder = os.path.join(base_dir, 'backups')
-os.makedirs(backup_folder, exist_ok=True)
+# Backwards-compatible alias kept for modules that still import db_path.
+db_path = DB_PATH
 
-db_path = os.path.join(base_dir, 'db.db')
 
 def respaldar_base_datos():
-    if os.path.exists(db_path):
-        timestamp = datetime.now().strftime('%Y%m%d')
-        backup_filename = f'db_backup.db'
-        shared_folder = settings.backup_shared_folder
-        shared_backup_path = os.path.join(shared_folder, backup_filename)
-        shutil.copyfile(db_path, shared_backup_path)
-        backup_path_local = os.path.join(backup_folder, backup_filename)
-        shutil.copyfile(db_path, backup_path_local)
-
-    else:
-        print("⚠️ No se encontró la base de datos para respaldar.")
+    """Make a backup now (startup / shutdown / explicit)."""
+    db.backup()
 
 def ejecutar(query, params=None):
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-
-    try:
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        conn.commit()
-    except Exception as e:
-        print(f"❌ Error al ejecutar la consulta: {e}")
-    finally:
-        conn.close()
+    db.execute(query, params)
 
 def selectFromDB(query, params=None):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-
-    try:
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-
-        salida = cursor.fetchall()
-        conn.close()
-        return salida
-    except Exception as e:
-        print(f"❌ Error al ejecutar la consulta: {e}")
-        conn.close()
-        return None
+    return db.query(query, params)
 
 def respaldar():
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.commit()
-        respaldar_base_datos()
-    except Exception as e:
-        print(f"❌ Error al ejecutar la consulta: {e}")
-    finally:
-        conn.close()
+    db.backup()
 
 def ejecutar_y_respaldar(query, params=None):
-    """ Ejecuta una consulta y hace respaldo si es de modificación. """
-    query_upper = query.strip().upper()
+    """Run a statement.
 
-    es_modificacion = query_upper.startswith(('INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER'))
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    try:
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-
-        if es_modificacion:
-            conn.commit()
-            respaldar_base_datos()
-        else:
-            conn.commit()  # Por si acaso
-    except Exception as e:
-        print(f"❌ Error al ejecutar la consulta: {e}")
-    finally:
-        conn.close()
+    Historically this backed up the whole database file on every write,
+    which made each INSERT/UPDATE/DELETE copy the file. Backups are now
+    explicit (see :meth:`Database.backup`), so this just executes.
+    """
+    db.execute(query, params)
 
 def inicializar_base_datos():
     #solo un respaldo al inicio  de la aplicacion

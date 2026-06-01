@@ -5,11 +5,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
 import os
-import sqlite3
 from db.part_tracking.robot_coordinator import RobotCoordinator
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from utils.helpers import FONT_SIZE, LEN_SIZE
-from db.database import ejecutar_y_respaldar, db_path 
+from db.repositories import conveyors_repo, parts_repo
 from db.part_tracking.part  import Part
 from db.part_tracking.program  import Program
 import copy
@@ -183,27 +182,12 @@ class Robot2Window(QWidget):
                 QMessageBox.Yes | QMessageBox.No
             )
             if resp == QMessageBox.Yes:
-                ejecutar_y_respaldar(
-                    "UPDATE conveyors SET part_id=NULL WHERE hanger_num=? AND conveyor='A'",
-                    (numero_hanger,)
-                )
-                ejecutar_y_respaldar(
-                    "UPDATE parts SET hanger_id=NULL, hanger_num=NULL, conveyor=NULL, status='EMPTY' WHERE part_id=?",
-                    (part_actual,)
-                )
+                conveyors_repo.set_part_id_null(numero_hanger, 'A')
+                parts_repo.clear_location(part_actual)
                 self.cargar_datos()
             return
         #ASSIGN CASE
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT part_id
-            FROM parts
-            WHERE hanger_id IS NULL
-            ORDER BY part_id
-        """)
-        rows = cur.fetchall()
-        conn.close()
+        rows = parts_repo.unassigned_ids()
 
         opciones = [str(r[0]) for r in rows]
         if not opciones:
@@ -219,14 +203,8 @@ class Robot2Window(QWidget):
             str(f"Selecciona PART NUMBER para el hanger {numero_hanger}:"),
             opciones, 0, False)
         if ok and seleccionado:
-            ejecutar_y_respaldar(
-                "UPDATE conveyors SET part_id=?, status='FULL' WHERE hanger_num=? AND conveyor='A'",
-                (seleccionado, numero_hanger)
-            )
-            ejecutar_y_respaldar(
-                """UPDATE parts SET hanger_num=?, hanger_id=?, conveyor='A' WHERE part_id=?""",
-                (numero_hanger, hanger_id, seleccionado)
-            )
+            conveyors_repo.set_part_id_full(seleccionado, numero_hanger, 'A')
+            parts_repo.set_hanger_on_conveyor(numero_hanger, hanger_id, 'A', seleccionado)
             self.cargar_datos()
 
 
@@ -241,10 +219,7 @@ class Robot2Window(QWidget):
         )
 
         if resp == QMessageBox.Yes:
-            ejecutar_y_respaldar(
-                "UPDATE conveyors SET enable=? WHERE hanger_num=? AND conveyor='A'",
-                (nuevo_estado, numero_hanger)
-            )
+            conveyors_repo.set_enable(nuevo_estado, numero_hanger, 'A')
             self.cargar_datos()
 
 class SubRobot2Window(QWidget):

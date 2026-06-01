@@ -1,4 +1,4 @@
-from db.database import ejecutar, selectFromDB, ejecutar_y_respaldar 
+from db.repositories import current_parts_repo
 from db.part_tracking.part  import Part
 from db.part_tracking.program  import Program
 import threading
@@ -21,7 +21,7 @@ class PartsTimer(QObject):
         self._lock = threading.Lock()
 
     def updateDryingParts(self):
-        parts = selectFromDB("SELECT part_id from currentParts where state='DRYING' or state='WAITING'")
+        parts = current_parts_repo.drying_or_waiting_ids()
         new_dict = {}
         for partId in parts:
             currentPart = Part(partId[0])
@@ -74,7 +74,7 @@ class PartsTimer(QObject):
                 program.time_deviation = str("-" + secondsToTime(secLeft*-1)) if secToMax > 0 else str(secondsToTime(secToMax*-1))
                 program.current_conveyor = program.conveyor_end
                 program.current_hanger = program.hanger_end
-                currentProgram = selectFromDB("SELECT program_id FROM currentParts WHERE part_id=?", (part.part_id,))
+                currentProgram = current_parts_repo.get_program_id(part.part_id)
                 currentProgram = currentProgram[0][0]
                 if currentProgram == program.program_id:
                     part.updateAll()

@@ -1,5 +1,5 @@
 from utils.helpers import addTimes, getSecondsBetween, formatToTime, isFormat, getDateTime
-from db.database import selectFromDB, ejecutar_y_respaldar
+from db.repositories import programs_repo, history_repo, parts_repo
 class Program():
     def __init__(self, programId=None, partId=None, step=None):
         self.part_id = partId
@@ -26,19 +26,13 @@ class Program():
         self.current_conveyor = None
         self.order_id = None
         if programId:
-            dato = selectFromDB("""
-            SELECT path, conveyor_start, conveyor_end FROM programs WHERE program_id=?
-            """, (programId, ))
+            dato = programs_repo.get_path_and_conveyors(programId)
             if dato:
                 self.path = dato[0][0]
                 self.conveyor_start = dato[0][1]
                 self.conveyor_end = dato[0][2]
         if partId and step is not None:
-            datos  = selectFromDB("""
-            SELECT step, program_id, robot_num, min_drying_time, max_drying_time,
-            state, start_date, start_time, end_date, end_time, run_time, hanger_num,
-            hanger_end, conveyor_start, conveyor_end, time_deviation, order_id FROM history WHERE part_id=? AND step=?
-            """, (partId, step))
+            datos = history_repo.get_program_step(partId, step)
             if datos:
                 self.setData(*datos[0])
 
@@ -80,8 +74,6 @@ class Program():
     #TODO: Esto funciona para algo?
     def initInHistory(self):
         fecha, hora = getDateTime()
-        conveyor_start = selectFromDB("SELECT conveyor FROM parts WHERE part_id=? ", (self.part_id, ))
+        conveyor_start = parts_repo.get_conveyor(self.part_id)
         self.conveyor_start = conveyor_start[0][0]
-        ejecutar_y_respaldar("""
-        UPDATE history SET state="RUNNING", start_date=?, start_time=?, conveyor_start=? WHERE program_id=? AND part_id=?
-        """, (fecha, hora, conveyor_start, self.program_id, self.part_id))
+        history_repo.set_running(fecha, hora, conveyor_start, self.program_id, self.part_id)

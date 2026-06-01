@@ -9,7 +9,9 @@ import re
 import platform
 import subprocess
 from db.part_tracking.part import Part
-from db.database import ejecutar, ejecutar_y_respaldar, selectFromDB, print_sqlite_table, init_users_table, init_programs_table, init_sequences_table, init_conveyors_tables, init_parts_table, init_partNumbers_table, init_currentParts_table, init_history_table
+from db.database import print_sqlite_table, init_users_table, init_programs_table, init_sequences_table, init_conveyors_tables, init_parts_table, init_partNumbers_table, init_currentParts_table, init_history_table
+from db.connection import db
+from db.repositories import conveyors_repo, history_repo, current_parts_repo, parts_repo
 from db.part_tracking.program import Program
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, LEN_SIZE, getDateTime, getNewId
 # ================= ESTILO =================
@@ -82,7 +84,7 @@ class SubVentanaDebug(QWidget):
         "history": init_history_table
             }
         for table, function in inits.items():
-            ejecutar(f"DROP TABLE {table}")
+            db.drop_table(table)
             function()
             if table == "conveyors":
                 conveyors = {
@@ -95,10 +97,7 @@ class SubVentanaDebug(QWidget):
                 for nombre_tabla, cantidad_hangers in conveyors.items():
                     #llena de hangers la tabla
                     for i in range(1, cantidad_hangers + 1):
-                        ejecutar_y_respaldar(f'''
-                            INSERT OR IGNORE INTO conveyors(hanger_id, hanger_num, conveyor, part_id)
-                            VALUES (?, ?, ?, ?)
-                        ''', (j, i,nombre_tabla,None))
+                        conveyors_repo.insert_hanger(j, i, nombre_tabla, None)
                         j = j + 1
 
     def resetTable(self, table):
@@ -110,7 +109,7 @@ class SubVentanaDebug(QWidget):
     "history": init_history_table,
     "programs": init_programs_table
         }
-        ejecutar(f"DROP TABLE {table}")
+        db.drop_table(table)
         inits[table]()
         if table == "conveyors":
             conveyors = {
@@ -123,49 +122,32 @@ class SubVentanaDebug(QWidget):
             for nombre_tabla, cantidad_hangers in conveyors.items():
                 #llena de hangers la tabla
                 for i in range(1, cantidad_hangers + 1):
-                    ejecutar_y_respaldar(f'''
-                        INSERT OR IGNORE INTO conveyors(hanger_id, hanger_num, conveyor, part_id)
-                        VALUES (?, ?, ?, ?)
-                    ''', (j, i,nombre_tabla,None))
+                    conveyors_repo.insert_hanger(j, i, nombre_tabla, None)
                     j = j + 1
                     
     def restartEverythingCurrent(self):
-        partsId = selectFromDB("""
-        SELECT DISTINCT part_id FROM history 
-        """)
+        partsId = history_repo.distinct_part_ids()
 
         for partId in partsId:
             part = Part(partId[0])
             for program in part.programs:
                 programAux = Program()
-                ejecutar_y_respaldar( """
-                UPDATE history SET state = ?, start_date = ?,
-                start_time = ?, end_date = ?, end_time = ?, run_time = ?,
-                station = ?, time_deviation=? WHERE part_id=? and step=?
-                """,
-                (programAux.state, programAux.start_date, programAux.start_time, programAux.end_date,
-                programAux.end_time, programAux.run_time, programAux.station, programAux.time_deviation, part.part_id, program.step)
+                history_repo.reset_step(
+                    programAux.state, programAux.start_date, programAux.start_time,
+                    programAux.end_date, programAux.end_time, programAux.run_time,
+                    programAux.station, programAux.time_deviation, part.part_id, program.step,
                 )
                 if program.step == "1" or program.step == 1:
 
                     part.setCurrentProgram(program)
 
-                    ejecutar_y_respaldar( """
-                    UPDATE currentParts SET current_step=?,  state = 'READY', start_date = ?,
-                    start_time = ?, end_date = ?, end_time = ?, run_time = ?,
-                    station = ?, time_deviation=?, program_id=? WHERE part_id=?
-                    """,
-                    (program.step, programAux.start_date, programAux.start_time, programAux.end_date, 
-                    programAux.end_time, programAux.run_time, programAux.station, programAux.time_deviation, program.program_id, part.part_id)
+                    current_parts_repo.reset_to_ready(
+                        program.step, programAux.start_date, programAux.start_time,
+                        programAux.end_date, programAux.end_time, programAux.run_time,
+                        programAux.station, programAux.time_deviation, program.program_id, part.part_id,
                     )
-                    ejecutar_y_respaldar("""
-                    UPDATE history SET state = 'READY'
-                    where part_id=? and program_id=? and step=1
-                        """, (part.part_id, program.program_id))
-                    ejecutar_y_respaldar("""
-                    UPDATE parts SET sequence_index=?
-                    where part_id=? 
-                        """, (program.step, part.part_id))
+                    history_repo.set_first_step_state_ready(part.part_id, program.program_id)
+                    parts_repo.set_sequence_index(program.step, part.part_id)
                         
     def fillConveyor(self, conveyor):
         if conveyor == "A":

@@ -5,9 +5,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
-import sqlite3
 from PyQt5.QtWidgets import QApplication, QMessageBox
-from db.database import ejecutar_y_respaldar, db_path
+from db.repositories import programs_repo
 from utils.helpers import FONT_SIZE, LEN_SIZE
 from config import settings
 import os
@@ -76,16 +75,7 @@ class VentanaProgramas(QWidget):
     def cargar_datos(self):
         self.tabla.hide()  # <-- oculta mientras carga
 
-        order = "ASC" if self.sort_asc else "DESC"
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute(f"""
-            SELECT program_id, path, robot_num, conveyor_start, conveyor_end 
-            FROM programs 
-            ORDER BY program_id {order}
-        """)
-        filas = c.fetchall()
-        conn.close()
+        filas = programs_repo.list_all(ascending=self.sort_asc)
 
         self.tabla.setRowCount(len(filas))
 
@@ -164,11 +154,7 @@ class VentanaProgramas(QWidget):
         self.cargar_datos()
 
     def editProgram(self, program_id):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("SELECT program_id, path, robot_num FROM programs WHERE program_id=?", (program_id,))
-        filas = c.fetchall()
-        conn.close()
+        filas = programs_repo.get_basic(program_id)
         dialogo = self.tableInputDialog(filas[0][0], filas[0][1], filas[0][2])
         dialogo.exec()
         self.cargar_datos()
@@ -178,9 +164,7 @@ class VentanaProgramas(QWidget):
                                     f"ARE YOU SURE TO DELETE PROGRAM '{program_id}'? THIS ACTION CAN NOT BE UNDONE.",
                                     QMessageBox.Yes | QMessageBox.No)
         if resp == QMessageBox.Yes:
-            ejecutar_y_respaldar(
-                "DELETE FROM programs WHERE program_id=?", (program_id,)
-            )
+            programs_repo.delete(program_id)
             self.cargar_datos()
 
     # tableInputDialog y SubVentanaProgramas sin cambios...
@@ -243,19 +227,9 @@ class VentanaProgramas(QWidget):
             #     return
             try:
                 if program_id == "000":
-                    ejecutar_y_respaldar(
-                    "INSERT INTO programs (program_id, path, robot_num) VALUES (?, ?, ?, ?, ?)",
-                    (new_program_id, path, robot_num)
-                    )
+                    programs_repo.insert(new_program_id, path, robot_num)
                 else:
-                    ejecutar_y_respaldar(
-                        f"""UPDATE programs SET 
-                            program_id = ?,
-                            path = ?,
-                            robot_num = ?
-                            WHERE program_id=?""",
-                            (new_program_id, path, robot_num, program_id)
-                        )
+                    programs_repo.update_basic(new_program_id, path, robot_num, program_id)
 
                 self.close()
             except Exception as e:
@@ -272,10 +246,7 @@ class VentanaProgramas(QWidget):
                 QMessageBox.warning(self, "ERROR", "THE PATH HAS TO BE A VALID DIRECORY")
                 return
             try:
-                ejecutar_y_respaldar(
-                    "INSERT INTO programs (program_id, path, robot_num) VALUES (?, ?, ?)",
-                    (program_id, path, robot_num)
-                    )
+                programs_repo.insert(program_id, path, robot_num)
                 self.close()
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"No se pudo asignar el programa: {e}")

@@ -1,4 +1,4 @@
-from db.database import selectFromDB
+from db.repositories import current_parts_repo, conveyors_repo
 from db.part_tracking.program import Program
 from db.part_tracking.part import Part
 from db.part_tracking.parts_timer import PartsTimer
@@ -158,7 +158,7 @@ class ProgramQueueManager():
             return hangerEnd - hangerStart + length
     def updateQueueOfParts(self):
         #Obtenemos todos los ids de partes
-        currentParts = selectFromDB(""" SELECT part_id FROM currentParts""")
+        currentParts = current_parts_repo.all_ids()
         self.priorityQueue = []
         self.mainQueue = []
         self.dryingList = []
@@ -248,7 +248,7 @@ class ProgramQueueManager():
         print(f'current hanger {currentHanger}')
 
         #TODO: VERIFY SELECTION IN COORDINATOR AND MANAGER IF THERE IS NOT NEXT PROGRAM
-        hangers = selectFromDB("SELECT hanger_num, status FROM conveyors WHERE conveyor=? AND status='EMPTY' ", (conveyor, ))
+        hangers = conveyors_repo.empty_hangers(conveyor)
         
         shortestDist = self.getDistFromConveyor(currentHanger, hangers[0][0], conveyor)
         shortestIndex = 0    

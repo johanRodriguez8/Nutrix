@@ -6,8 +6,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import  QMessageBox
 from utils.helpers import getDateTime, getNewId
-from db.part_tracking.part import Part 
-from db.database import selectFromDB, ejecutar, ejecutar_y_respaldar
+from db.part_tracking.part import Part
+from db.repositories import parts_repo, current_parts_repo, conveyors_repo
 
 class ReassingWindow(QDialog):
     def __init__(self, current_hanger, current_conveyor, part_id):
@@ -28,9 +28,7 @@ class ReassingWindow(QDialog):
         hbox.addWidget(currentConvLabel)
         self.layout.addLayout(hbox)
 
-        hangers = selectFromDB("""
-        SELECT hanger_num FROM conveyors WHERE status=? AND conveyor=?
-        """, ("EMPTY", self.new_conveyor))
+        hangers = conveyors_repo.hangers_by_status("EMPTY", self.new_conveyor)
 
         hangers = [str(hanger[0]) for hanger in hangers]
 
@@ -77,34 +75,18 @@ class ReassingWindow(QDialog):
 
 
     def update_part(self, new_hanger, new_conveyor):
-        resultado = selectFromDB("SELECT part_id, hanger_num, conveyor, hanger_id FROM parts WHERE part_id = ?", (self.part_id,))
+        resultado = parts_repo.get_location(self.part_id)
         print(f"antes del update: {resultado}")
 
         if not resultado:
-            return 
-        part_info = selectFromDB("SELECT part_num, order_id FROM parts WHERE part_id = ?", (self.part_id,))
+            return
+        part_info = parts_repo.get_part_and_order(self.part_id)
         part_num = part_info[0][0] if part_info else None
         order_id = part_info[0][1] if part_info else None
 
-        ejecutar_y_respaldar(
-            "UPDATE parts SET hanger_num = ?, conveyor = ? WHERE part_id = ?",
-            (new_hanger, new_conveyor, self.part_id)
-        )
-
-        ejecutar_y_respaldar(
-            "UPDATE currentParts SET current_hanger = ?, current_conveyor = ? WHERE part_id = ?",
-            (new_hanger, new_conveyor, self.part_id)
-        )
-        
-
-        ejecutar_y_respaldar(
-            "UPDATE conveyors SET status = 'EMPTY', part_id = NULL, part_num = NULL, order_id = NULL WHERE hanger_num = ? AND conveyor = ?",
-            (self.current_hanger, self.current_conveyor)
-        )
-
-        ejecutar_y_respaldar(
-            "UPDATE conveyors SET status = 'FULL', part_id = ?, part_num = ?, order_id = ? WHERE hanger_num = ? AND conveyor = ?",
-            (self.part_id, part_num, order_id, new_hanger, new_conveyor)
-        )
+        parts_repo.update_location(new_hanger, new_conveyor, self.part_id)
+        current_parts_repo.set_location(new_hanger, new_conveyor, self.part_id)
+        conveyors_repo.clear(self.current_hanger, self.current_conveyor)
+        conveyors_repo.fill_with_order(self.part_id, part_num, order_id, new_hanger, new_conveyor)
 
 

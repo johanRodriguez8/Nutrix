@@ -20,7 +20,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMessageBox
 from utils.helpers import getDateTime, getNewId
 from db.part_tracking.part import Part
-from db.database import selectFromDB
+from db.repositories import part_numbers_repo, work_orders_repo
 from utils.popups import defaultErrorToast
 
 
@@ -58,18 +58,9 @@ class selectPartNumWindow(QWidget):
         self.closeFunc = closeFunct
         self.hanger_num = numero_hanger
         self.conveyor = conveyor
-        rawPartNum = selectFromDB(
-            """
-            SELECT DISTINCT part_num
-            FROM partNumbers
-            ORDER BY part_num
-            """,
-            # (conveyor,)
-        )
+        rawPartNum = part_numbers_repo.distinct_part_nums()
 
-        rawOrder = selectFromDB(
-            "SELECT DISTINCT order_id FROM workOrders ORDER BY order_id"
-        )
+        rawOrder = work_orders_repo.distinct_order_ids()
 
         if not rawPartNum:
             self.partNumLabel = QLabel("NO PART NUMBERS")

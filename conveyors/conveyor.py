@@ -6,13 +6,12 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QModelIndex
 from conveyors.assign_part_window import AssignPartWindow
 from PyQt5 import QtGui
-import sqlite3
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from PyQt5.QtCore import Qt, QModelIndex, pyqtSignal
 
 import copy
-from db.database import ejecutar_y_respaldar, db_path, selectFromDB
+from db.repositories import conveyors_repo, part_numbers_repo, current_parts_repo
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, LEN_SIZE, getDateTime, getNewId
 from db.part_tracking.part import Part 
 from conveyors.reassign_window import ReassingWindow
@@ -48,16 +47,7 @@ class TablaConveyor(QWidget):
         self.cargar_datos()
 
     def cargar_datos(self):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("""
-            SELECT hanger_id, hanger_num, status, enable, part_id, part_num, order_id
-            FROM conveyors
-            WHERE conveyor=?
-            ORDER BY hanger_num
-        """, (self.conveyor, ))
-        filas = c.fetchall()
-        conn.close()
+        filas = conveyors_repo.list_by_conveyor(self.conveyor)
 
         self.tabla.setRowCount(len(filas))
         #print(f'FILAAAAS {filas}')
@@ -66,8 +56,8 @@ class TablaConveyor(QWidget):
         for r, (hanger_id, numero_hanger, status, habilitado, part_id, part_num, order_id) in enumerate(filas):
             self.tabla.setRowHeight(r, FONT_SIZE*2+10)
             if status == "FULL":
-                seqId = selectFromDB("SELECT sequence_id FROM partNumbers WHERE part_num=? ", (part_num, ))
-                state = selectFromDB("SELECT state FROM currentParts WHERE part_id=?", (part_id, ))
+                seqId = part_numbers_repo.get_sequence_id(part_num)
+                state = current_parts_repo.get_state(part_id)
                 item_seqId = QTableWidgetItem(seqId[0][0])
                 current_state = state[0][0]
                 item_state = QTableWidgetItem(current_state)
@@ -277,10 +267,7 @@ class TablaConveyor(QWidget):
         )
 
         if resp == QMessageBox.Yes:
-            ejecutar_y_respaldar(
-                "UPDATE conveyors SET enable=? WHERE hanger_num=? AND conveyor=?",
-                (new_enable, numero_hanger, self.conveyor)
-            )
+            conveyors_repo.set_enable(new_enable, numero_hanger, self.conveyor)
             self.cargar_datos()
             self.datos_actualizados.emit()
 
@@ -298,16 +285,7 @@ class TablaConveyor(QWidget):
         self.datos_actualizados.emit()
 
     def update_part_state(self, part_id, new_state):
-        ejecutar_y_respaldar(
-            "UPDATE currentParts SET state=? WHERE part_id=?",
-            (new_state, part_id)
-        )
-
-        ejecutar_y_respaldar(
-            "UPDATE currentParts SET state=? WHERE part_id=?",
-            (new_state, part_id)
-        )
-
+        current_parts_repo.set_state(new_state, part_id)
         self.cargar_datos()
 
     def open_change_state_dialog(self, part_id):

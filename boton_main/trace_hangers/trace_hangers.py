@@ -11,7 +11,7 @@ from db.part_tracking.part  import Part
 from db.part_tracking.program  import Program
 import time
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, secondsToTime
-from db.database import selectFromDB
+from db.repositories import current_parts_repo, parts_repo, part_numbers_repo
 from db.part_tracking.robot_coordinator import RobotCoordinator
 from db.part_tracking.parts_timer import PartsTimer
 from db.part_tracking.program_queue_manager import ProgramQueueManager
@@ -242,18 +242,11 @@ class TraceHangersWindow(QMainWindow):
         self.timerConn.start(WAIT_LED_TIME)
 
         # ---------- LOAD PARTS ----------
-        ids = selectFromDB(
-            "SELECT DISTINCT part_id FROM currentParts ORDER BY part_id"
-        )
+        ids = current_parts_repo.all_ids_ordered()
         piezas = []
         for id in ids:
-            aux = selectFromDB(
-                """
-                SELECT part_id, part_num, start_date, start_time, hanger_id, conveyor
-                FROM parts WHERE part_id=?
-                """,
-                id
-            )
+            pid = id[0] if isinstance(id, tuple) else id
+            aux = parts_repo.get_trace_info(pid)
             piezas.append(aux[0])
 
         self.mainTable = QTableWidget()
@@ -329,17 +322,7 @@ class TraceHangersWindow(QMainWindow):
 
             partId = pieza[0]
             partNum = pieza[1]
-            programs = selectFromDB(
-                """
-                SELECT program_id,part_num, min_drying_time, max_drying_time, 
-                robot_num, state, start_date, start_time, end_date, end_time,
-                run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end,
-                current_hanger, current_conveyor, current_step
-                FROM currentParts
-                WHERE part_id=?
-                """,
-                (partId,)
-            )
+            programs = current_parts_repo.get_trace_programs(partId)
             programId,part_num, minTime, maxTime, robot, state, start_date, start_time, end_date, end_time, \
             run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end, current_hanger, current_conveyor, current_step = programs[0]
 
@@ -347,14 +330,7 @@ class TraceHangersWindow(QMainWindow):
             print(partNum)
 
 
-            sequence = selectFromDB(
-                """
-                SELECT sequence_id
-                FROM partNumbers
-                WHERE part_num=?;
-                """,
-                (part_num,)
-            )
+            sequence = part_numbers_repo.get_sequence_id(part_num)
             print(part_num)
 
             sequenceId = sequence[0][0] if sequence else ""

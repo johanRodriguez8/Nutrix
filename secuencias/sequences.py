@@ -8,10 +8,9 @@ from PyQt5.QtCore import QMimeData, Qt, pyqtSignal, QModelIndex
 from PyQt5.QtGui import QDrag, QPixmap, QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
-import sqlite3
 from PyQt5.QtWidgets import QAbstractItemView
 from PyQt5.QtWidgets import QApplication, QMessageBox
-from db.database import ejecutar_y_respaldar, ejecutar, respaldar, db_path
+from db.repositories import sequences_repo, programs_repo
 from utils.helpers import FONT_SIZE, LEN_SIZE
 class VentanaSecuencias(QWidget):
     def __init__(self):
@@ -55,10 +54,7 @@ class VentanaSecuencias(QWidget):
         self.cargar_datos()
 
     def cargar_datos(self):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("SELECT DISTINCT sequence_id FROM sequences ORDER BY sequence_id")
-        nonRepeatedData = c.fetchall()
+        nonRepeatedData = sequences_repo.distinct_ids()
         ids = []
         #robots = []
         for i in nonRepeatedData:
@@ -66,10 +62,8 @@ class VentanaSecuencias(QWidget):
             #robots.append(i[1])
         programsBySequence = []
         for id in ids:
-            c.execute(f"SELECT program_id, min_drying_time, max_drying_time, step FROM sequences WHERE sequence_id=?", (id,))
-            programsId = c.fetchall()
+            programsId = sequences_repo.get_programs(id)
             programsBySequence.append(programsId)
-        conn.close()
 
         self.tabla.setRowCount(len(ids))
         sequenceNum = 0
@@ -140,9 +134,7 @@ class VentanaSecuencias(QWidget):
                                     f"¿Eliminar '{sequence_id}'? Esta acción no se puede deshacer.",
                                     QMessageBox.Yes | QMessageBox.No)
         if resp == QMessageBox.Yes:
-            ejecutar("""
-            DELETE FROM sequences WHERE sequence_id=?
-            """, (sequence_id,))
+            sequences_repo.delete(sequence_id)
             self.cargar_datos()
     def create_table_combobox(self, data):
         combo = QComboBox()
@@ -213,12 +205,8 @@ class programSelectionWindow(QDialog):
         #self.listTable.setGeometry(800, 250, 400, 125)
         if searchID != -1:
             self.idWidget.setText(searchID)
-            conn = sqlite3.connect(db_path)
-            c = conn.cursor()
-            c.execute(f"SELECT program_id, min_drying_time, max_drying_time, step FROM sequences WHERE sequence_id=? ORDER BY step;", (searchID,))
-            newPrograms = c.fetchall()
+            newPrograms = sequences_repo.get_programs(searchID)
             self.updateSelectedPrograms(newPrograms)
-            c.close()
         self.layout.addWidget(self.listTable, 2, 1, 10, 1)
         self.setLayout(self.layout)
 
@@ -243,13 +231,10 @@ class programSelectionWindow(QDialog):
         for item in allItems:
             currentOrder.append(item)
         #Anadimos al orden actual los nuevos
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
         if newPrograms:
             for program in newPrograms:
                 #Añadimos la lista de campos completa en current order
-                c.execute(f"SELECT robot_num FROM programs WHERE program_id=?;", (program[0],))
-                currentRobot = c.fetchall()
+                currentRobot = programs_repo.get_robot(program[0])
                 newProgram = [program[0], currentRobot[0][0], program[1], program[2]]
                 currentOrder.append(newProgram)
         #actualizamos el widget
@@ -287,7 +272,6 @@ class programSelectionWindow(QDialog):
             self.listTable.setItem(i, 1, robotWidget)
             self.listTable.setItem(i, 2, minDryingItem)
             self.listTable.setItem(i, 3, maxDryingItem)
-        c.close()
     def deleteProgram(self):
         selectedItem = self.listTable.selectedItems()
         if selectedItem:
@@ -304,15 +288,14 @@ class programSelectionWindow(QDialog):
         self.selectedPrograms = self.listTable.get_table_data()
         if isVerify:
             for i in range(len(self.selectedPrograms)):
-                ejecutar("""
-                INSERT INTO sequences (sequence_id, program_id, min_drying_time, max_drying_time, step) VALUES (?, ?, ?, ?, ?)
-                """, (id, self.selectedPrograms[i][0], self.selectedPrograms[i][2], self.selectedPrograms[i][3], i+1))
+                sequences_repo.insert(
+                    id, self.selectedPrograms[i][0], self.selectedPrograms[i][2],
+                    self.selectedPrograms[i][3], i + 1,
+                )
             self.accept()
     def editProgramsInSequence(self):
         id = self.idWidget.text()
-        ejecutar_y_respaldar("""
-        DELETE FROM sequences WHERE sequence_id=?
-        """, (id,))
+        sequences_repo.delete(id)
         self.addProgramsToSequence()
         self.accept()
     def verification(self, id):
@@ -339,11 +322,7 @@ class subProgramSelectionWindow(QDialog):
         self.scrollLayout = QVBoxLayout(self.scrollWidget)
         self.scrollLayout.setSpacing(4)
 
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("SELECT program_id FROM programs ORDER BY program_id")
-        self.allPrograms = c.fetchall()
-        c.close()
+        self.allPrograms = programs_repo.all_ids()
 
         # Diccionario para guardar {program_id: QSpinBox}
         self.spinBoxes = {}

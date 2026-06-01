@@ -6,13 +6,12 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import (Qt, QEvent)
 from PyQt5 import QtGui
 import os
-import sqlite3
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from utils.popups import defaultErrorToast
 
 from pyqttoast import Toast, ToastPreset, ToastPosition
-from db.database import ejecutar_y_respaldar, ejecutar, db_path
+from db.repositories import part_numbers_repo, sequences_repo
 
 from utils.helpers import FONT_SIZE, LEN_SIZE
 
@@ -87,11 +86,7 @@ class TablaPartNumbers(QWidget):
         self.cargar_datos()
 
     def formatPartNumbers(self):
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT part_num, sequence_id FROM partNumbers;")
-        filas = cur.fetchall()
-        conn.close()
+        filas = part_numbers_repo.list_all()
 
         to_update = []
         for part, seq in filas:
@@ -113,10 +108,7 @@ class TablaPartNumbers(QWidget):
         )
         if resp == QMessageBox.Yes:
             for clean_part, clean_seq, original in to_update:
-                ejecutar_y_respaldar(
-                    "UPDATE partNumbers SET part_num=?, sequence_id=? WHERE part_num=?",
-                    (clean_part, clean_seq, original)
-                )
+                part_numbers_repo.update(clean_part, clean_seq, original)
             self.cargar_datos()
             QMessageBox.information(self, "SUCCESS", f"✅ {len(to_update)} records cleaned.")
 
@@ -128,12 +120,7 @@ class TablaPartNumbers(QWidget):
     def cargar_datos(self):
 
         self.tabla.hide()
-        order = "ASC" if self.sort_asc else "DESC"
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute(f"SELECT part_num, sequence_id FROM partNumbers ORDER BY sequence_id {order};")
-        filas = cur.fetchall()
-        conn.close()
+        filas = part_numbers_repo.list_all_ordered(ascending=self.sort_asc)
 
         self.tabla.setRowCount(len(filas))
 
@@ -198,7 +185,7 @@ class TablaPartNumbers(QWidget):
                                     f"¿Eliminar '{row_id}'? Esta acción no se puede deshacer.",
                                     QMessageBox.Yes | QMessageBox.No)
         if resp == QMessageBox.Yes:
-            ejecutar_y_respaldar("DELETE FROM partNumbers WHERE part_num=?", (row_id,))
+            part_numbers_repo.delete(row_id)
             self.cargar_datos()
 
     def addPart(self):
@@ -225,11 +212,7 @@ class addPartWindow(QDialog):
         self.originalPartId = newPartId
         self.sequenceId = QComboBox()
         self.sequenceId.setAccessibleName("Sequence")
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT sequence_id FROM sequences ORDER BY sequence_id;")
-        sequences = cur.fetchall()
-        conn.close()
+        sequences = sequences_repo.distinct_ids()
         for seq in sequences:
             self.sequenceId.addItem(seq[0])
         self.okButton = QPushButton("OK")
@@ -258,9 +241,7 @@ class addPartWindow(QDialog):
         sequence = self.sequenceId.currentText()
         part = self.partId.text()
         if self.validation(part):
-            ejecutar("""
-                INSERT INTO partNumbers (part_num, sequence_id) VALUES (?, ?) 
-            """, (part, sequence))
+            part_numbers_repo.insert(part, sequence)
             self.accept()
     def editPart(self):
         sequence = self.sequenceId.currentText()
@@ -271,11 +252,7 @@ class addPartWindow(QDialog):
             if not self.validation(newPart):
                 return
 
-        ejecutar("""
-            UPDATE partNumbers 
-            SET part_num=?, sequence_id=? 
-            WHERE part_num=? 
-        """, (newPart, sequence, self.originalPartId))
+        part_numbers_repo.update(newPart, sequence, self.originalPartId)
 
         self.accept()
 
@@ -283,11 +260,7 @@ class addPartWindow(QDialog):
         # if not part.isnumeric():
         #     QMessageBox.warning(self, "ERROR", "PART ID HAS TO BE A NUMBER")
         #     return False
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT part_num FROM partNumbers;")
-        parts = cur.fetchall()
-        conn.close()
+        parts = part_numbers_repo.all_part_nums()
         for parte in parts:
             if part == parte[0]:
                 QMessageBox.warning(self, "ERROR", "PART ID ALREADY EXIST, TRY EDIT BUTTON")
@@ -442,11 +415,7 @@ class BulkImportWindow(QDialog):
             QMessageBox.warning(self, "ERROR", "No valid pairs found. Check the format.")
             return
 
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT part_num FROM partNumbers;")
-        existing = {row[0] for row in cur.fetchall()}
-        conn.close()
+        existing = {row[0] for row in part_numbers_repo.all_part_nums()}
 
         duplicates = [p for p in parts if p in existing]
         new_pairs  = [(p, s) for p, s in zip(parts, seqs) if p not in existing]
@@ -464,8 +433,7 @@ class BulkImportWindow(QDialog):
                 return
 
         for part, seq in new_pairs:
-            ejecutar("INSERT INTO partNumbers (part_num, sequence_id) VALUES (?, ?)",
-                     (part, seq))
+            part_numbers_repo.insert(part, seq)
 
         QMessageBox.information(self, "SUCCESS",
             f"✅ {len(new_pairs)} parts imported successfully.")

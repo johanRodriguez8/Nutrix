@@ -6,9 +6,8 @@ from PyQt5.QtWidgets import ( QStyledItemDelegate
 )
 from PyQt5.QtGui import QPainter, QColor, QPen
 from datetime import datetime, date
-from db.database import ejecutar_y_respaldar, db_path, selectFromDB
+from db.repositories import parts_repo
 from config import settings
-import sqlite3
 FONT_SIZE = 15
 LEN_SIZE = FONT_SIZE*8+10
 
@@ -100,16 +99,8 @@ def getNewId():
         else:
             day = f"0{day}"
         fechaHoy = day+month+year
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT part_id
-            FROM parts
-            ORDER BY part_id
-        """)
-        idList = cur.fetchall()
-        conn.close()
-        if idList:  
+        idList = parts_repo.all_ids()
+        if idList:
             numericList = [] 
             biggest = 0
             for id in idList:

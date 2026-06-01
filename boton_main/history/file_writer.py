@@ -1,5 +1,5 @@
 
-from db.database import selectFromDB
+from db.repositories import history_repo, parts_repo
 import csv
 from csv2pdf import convert
 from utils.helpers import isEarlierThan, getDateTime
@@ -35,13 +35,8 @@ class FileWriter():
             self.createHTMLFile()
     
     def getTerminatedPartInfo(self, partId):
-        id = partId if isinstance(partId, tuple) else (partId, )
-        programInfo = selectFromDB("""
-            SELECT program_id, robot_num, min_drying_time, max_drying_time, 
-            state, start_date, start_time, end_time, run_time, hanger_num, 
-            conveyor_start, hanger_end, conveyor_end, time_deviation FROM history WHERE part_id=?
-        """, id)
-        return programInfo
+        pid = partId[0] if isinstance(partId, tuple) else partId
+        return history_repo.get_terminated_part_info(pid)
     def getDefaultName(self, path):
         fecha, hora = getDateTime()
         fecha = fecha.replace("/", "_")
@@ -61,14 +56,8 @@ class FileWriter():
                 "FROM HANGER", "FROM CONV", "TO HANGER", "TO CONV", "TIME DEV"
             ]
             for id in self.ids:
-                id = id if isinstance(id, tuple) else (id, )
-                headerInfo = selectFromDB(
-                """
-                SELECT  part_num, order_id, part_id, upload_date
-                FROM history WHERE part_id=?
-                """,
-                id
-                )
+                pid = id[0] if isinstance(id, tuple) else id
+                headerInfo = history_repo.get_file_header(pid)
                 writer.writerow(partHeader)
                 writer.writerow(headerInfo[0])
                 writer.writerow(programHeader)
@@ -118,21 +107,9 @@ class FileWriter():
 
 
     def getPartHTMLHeader(self, partId):
-        headerInfo = selectFromDB(
-                """
-                SELECT  part_num, order_id, part_id, start_date 
-                FROM parts WHERE part_id=?
-                """,
-                (partId, )
-                )
+        headerInfo = parts_repo.get_file_header(partId)
         if not headerInfo:
-            headerInfo = selectFromDB(
-            """
-            SELECT  part_num, order_id, part_id, upload_date
-            FROM history WHERE part_id=?
-            """,
-            (partId, )
-            )
+            headerInfo = history_repo.get_file_header(partId)
         partNum, order_id, part_id, upload_date = headerInfo[0]
         header = f"""
             <table width="100%" cellspacing="0" cellpadding="4">

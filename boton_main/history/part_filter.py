@@ -1,6 +1,6 @@
 
 
-from db.database import selectFromDB
+from db.repositories import history_repo, current_parts_repo
 from utils.helpers import isEarlierThan, getDateTime
 class PartFilter():
     def __init__(self):
@@ -40,7 +40,7 @@ class PartFilter():
             return []
 
     def getAllIds(self):
-        return selectFromDB(f"""SELECT DISTINCT part_id FROM history ORDER BY part_id """)
+        return history_repo.distinct_part_ids()
 
     def filterByPartNumber(self, ids):
         filterIds = []
@@ -80,27 +80,21 @@ class PartFilter():
 
     
     def isVirgin(self, partId):
-        starts = selectFromDB(f"""
-        SELECT start_date FROM history WHERE start_date IS NOT NULL AND start_date IS NOT '00/00/00' AND part_id=? 
-        """, (partId, ))
+        starts = history_repo.get_start_dates(partId)
         if starts:
             return False
         else:
             return True
 
     def isTerminated(self, partId):
-        lastEndDate = selectFromDB("""
-        SELECT end_date FROM history WHERE step=(SELECT MAX(step) FROM history WHERE part_id=?) AND part_id=? 
-        """, (partId, partId))
+        lastEndDate = history_repo.get_last_end_date(partId)
         if lastEndDate[0][0] in [None, '00/00/00']:
             return False
         else:
             return True
 
     def isCurrent(self, partId):
-        currentId = selectFromDB("""
-        SELECT part_id FROM currentParts WHERE part_id = ?
-        """, (partId, ))
+        currentId = current_parts_repo.get_id(partId)
         if currentId:
             return True
         else:
@@ -108,25 +102,19 @@ class PartFilter():
 
     def getDateVariable(self, partId, dateVariable):
         partId = partId[0] if isinstance(partId, tuple) else partId
-        date = selectFromDB(f"""
-            SELECT {dateVariable} FROM history WHERE {dateVariable} IS NOT NULL AND {dateVariable} IS NOT '00/00/00' AND part_id=? 
-            """, (partId, ))
+        date = history_repo.get_dates(dateVariable, partId)
         if date:
             return date[0][0]
         return date
 
     def getWorkOrder(self, partId):
-        orderId = selectFromDB(f"""
-        SELECT DISTINCT order_id FROM history WHERE part_id=?
-        """, (partId, ))
+        orderId = history_repo.distinct_order_id(partId)
         if orderId:
             return orderId[0][0]
         return orderId
-    
+
     def getPartNum(self, partId):
-        partNum = selectFromDB(f"""
-        SELECT DISTINCT part_num FROM history WHERE part_id=?
-        """, (partId, ))
+        partNum = history_repo.distinct_part_num(partId)
         if partNum:
             return partNum[0][0]
         return partNum

@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QDate
 from PyQt5 import QtGui
 from utils.helpers import MultiRowBorderDelegate, FONT_SIZE, isEarlierThan, getDateTime
-from db.database import selectFromDB
+from db.repositories import parts_repo, history_repo, part_numbers_repo
 from db.part_tracking.robot_coordinator import RobotCoordinator
 from db.part_tracking.parts_timer import PartsTimer
 from db.part_tracking.program_queue_manager import ProgramQueueManager
@@ -57,9 +57,6 @@ class HistoryWindow(QMainWindow):
         self.setWindowTitle("HISTORY")
         self.showMaximized()
         self.uiIds = []
-        # self.uiIds  = selectFromDB(
-        #     "SELECT DISTINCT part_id FROM currentParts ORDER BY part_id"
-        # )
         self.loadLayout()
 
     def loadLayout(self):
@@ -86,35 +83,16 @@ class HistoryWindow(QMainWindow):
     def loadPartsList(self, idList):
         piezas = []
         for id in idList:
-            id = id if isinstance(id, tuple) else (id, )
-            aux = selectFromDB(
-                """
-                SELECT part_id, part_num, start_date, start_time, hanger_id, conveyor, order_id
-                FROM parts WHERE part_id=?
-                """,
-                id
-            )
+            pid = id[0] if isinstance(id, tuple) else id
+            aux = parts_repo.get_history_window_info(pid)
             if not aux:
-                aux = selectFromDB(
-                """
-                SELECT part_id, part_num, upload_date, start_time, hanger_id, conveyor_start, order_id
-                FROM history WHERE part_id=?
-                """,
-                id
-                )
+                aux = history_repo.get_history_window_header(pid)
             piezas.append(aux[0])
         self.tables = {}
         self.delegates = {}
         # ---------- BUILD UI FOR EACH PART ----------
         for i, (partId, partNum, start_date, start_time, hanger_id, conveyor, order_id) in enumerate(piezas):
-            sequence = selectFromDB(
-                """
-                SELECT sequence_id
-                FROM partNumbers
-                WHERE part_num=?
-                """,
-                (partNum,)
-            )
+            sequence = part_numbers_repo.get_sequence_id(partNum)
             frame = QFrame()
             frame.setObjectName("partFrame")
             frame.setFrameShape(QFrame.StyledPanel)  # or Box
@@ -158,16 +136,7 @@ class HistoryWindow(QMainWindow):
             frameLayout.addWidget(partInfo)
             frameLayout.addWidget(table)
             self.layout.addWidget(frame)
-            programs = selectFromDB(
-                """
-                SELECT program_id, min_drying_time, max_drying_time, 
-                robot_num, state, start_date, start_time, end_date, end_time,
-                run_time, hanger_num, conveyor_start, hanger_end, conveyor_end, time_deviation 
-                FROM history
-                WHERE part_id=?
-                """,
-                (partId,)
-            )
+            programs = history_repo.get_window_programs(partId)
             self.loadDataOnTable(table, programs, hanger_id, conveyor)
             table.resizeRowsToContents()
             table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

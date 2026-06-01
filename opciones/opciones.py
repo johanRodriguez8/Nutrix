@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from opcua import Client,Server
-from db.database import ejecutar_y_respaldar
+from db.repositories import programs_repo
 import platform
 import subprocess
 from robots.robot_loader import RobotLoader
@@ -267,9 +267,7 @@ class ProgramWindow(QWidget):
                         elif id in cTod:
                             conveyor_start = 'C'
                             conveyor_end = 'D' 
-                        ejecutar_y_respaldar("""
-                        INSERT OR REPLACE INTO programs (program_id, path, robot_num, conveyor_start, conveyor_end) values (?,?,?,?,?);
-                        """, (id, program, num+1, conveyor_start, conveyor_end))
+                        programs_repo.upsert_full(id, program, num+1, conveyor_start, conveyor_end)
             else:
                 list_widget.addItem("NO PROGRAMS .NGC")
         except Exception:

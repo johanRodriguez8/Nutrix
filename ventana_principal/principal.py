@@ -30,6 +30,7 @@ from db.part_tracking.robot_coordinator import RobotCoordinator
 from db.part_tracking.parts_timer import PartsTimer
 from db.part_tracking.program_queue_manager import ProgramQueueManager
 from db.database import inicializar_base_datos
+from db.connection import db
 from debugging.debuggin_window import DualConsole
 from config import settings
 ip1, ip2 = settings.robot_ips()
@@ -183,6 +184,7 @@ class VentanaPrincipal(QMainWindow):
             )
             if respuesta == QMessageBox.Yes:
                 self.confirmado_para_salir = True
+                db.backup()  # Respaldo explícito al cerrar (ya no por cada escritura)
                 QApplication.closeAllWindows()
                 robot1.stopListening()
                 robot2.stopListening()
