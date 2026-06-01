@@ -13,7 +13,6 @@ from db.database import ejecutar_y_respaldar, db_path
 from db.part_tracking.part  import Part
 from db.part_tracking.program  import Program
 import copy
-COMPARTIDA_INICIAL = "/home/numtek/Desktop/COMPARTIDA"  
 HANG_COL = 0
 CONV_COL = 1
 STATUS_COL = 2

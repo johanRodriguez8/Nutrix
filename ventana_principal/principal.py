@@ -26,25 +26,20 @@ from opciones.opciones import SubVentanaOpciones
 from debugging.debuggin_window import SubVentanaDebug
 from robots.robot import Robot
 from robots.robot_loader import RobotLoader
-from utils.helpers import load_ips
 from db.part_tracking.robot_coordinator import RobotCoordinator
 from db.part_tracking.parts_timer import PartsTimer
-from db.part_tracking.program_queue_manager import ProgramQueueManager 
+from db.part_tracking.program_queue_manager import ProgramQueueManager
 from db.database import inicializar_base_datos
 from debugging.debuggin_window import DualConsole
-ip1, ip2 = load_ips()
-ROBOT_USER = "numtek"
-ROBOT_PASSWORD = "123"
-ROBOT_PROGRAM_DIR = "/home/numtek/Desktop/COMPARTIDA"
+from config import settings
+ip1, ip2 = settings.robot_ips()
 FONT_SIZE = 15
-COMPARTIDA_INICIAL = "/home/numtek/Desktop/COMPARTIDA"
 #Singleton objects
 inicializar_base_datos()
-#Robot("ROBOT 1", ip1, ROBOT_USER, ROBOT_PASSWORD, ROBOT_PROGRAM_DIR),
-robot1 = Robot(ip1, 4840, "Robot1")
-robot1Loader = RobotLoader("Robot1", ip1, ROBOT_USER, ROBOT_PASSWORD, ROBOT_PROGRAM_DIR)
-robot2 = Robot(ip2, 4840, "Robot2")
-robot2Loader = RobotLoader("Robot2", ip2, ROBOT_USER, ROBOT_PASSWORD, ROBOT_PROGRAM_DIR)
+robot1 = Robot(ip1, settings.port1, "Robot1")
+robot1Loader = RobotLoader("Robot1", ip1, settings.ssh_user, settings.ssh_password, settings.program_dir)
+robot2 = Robot(ip2, settings.port2, "Robot2")
+robot2Loader = RobotLoader("Robot2", ip2, settings.ssh_user, settings.ssh_password, settings.program_dir)
 partsTimer = PartsTimer()
 dc = DualConsole()
 queueManager = ProgramQueueManager(robot1, robot2, partsTimer, dc)

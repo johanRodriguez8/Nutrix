@@ -9,19 +9,16 @@ import sqlite3
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from db.database import ejecutar_y_respaldar, db_path
 from utils.helpers import FONT_SIZE, LEN_SIZE
+from config import settings
 import os
 import paramiko
 
-R1_IP = '10.170.83.210'
-R2_IP = "10.170.83.211"
-port = 4840 # Default SSH port
-username = 'numtek'
-password = '123' # Or use key-based authentication for better security
-ROBOT_USER = "numtek"
-ROBOT_PASSWORD = "123"
-ROBOT_PROGRAM_DIR = "/home/numtek/Desktop/COMPARTIDA"
-
-COMPARTIDA_INICIAL = "/home/numtek/Desktop/COMPARTIDA"
+R1_IP = settings.ip1
+R2_IP = settings.ip2
+port = 4840 # SSH port used to reach the robot controllers
+username = settings.ssh_user
+password = settings.ssh_password
+COMPARTIDA_INICIAL = settings.program_dir
 class VentanaProgramas(QWidget):
     def __init__(self):
         super().__init__()

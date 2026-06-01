@@ -15,7 +15,6 @@ from pyqttoast import Toast, ToastPreset, ToastPosition
 from db.database import ejecutar_y_respaldar, ejecutar, db_path
 
 from utils.helpers import FONT_SIZE, LEN_SIZE
-COMPARTIDA_INICIAL = "/home/numtek/Desktop/COMPARTIDA"  
 
 class TablaPartNumbers(QWidget):
     def __init__(self):

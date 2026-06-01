@@ -1,5 +1,5 @@
 PyQt5
-pyqttoast
+pyqt-toast-notification
 opcua
 csv2pdf
 paramiko

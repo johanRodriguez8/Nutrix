@@ -7,10 +7,8 @@ from PyQt5.QtWidgets import ( QStyledItemDelegate
 from PyQt5.QtGui import QPainter, QColor, QPen
 from datetime import datetime, date
 from db.database import ejecutar_y_respaldar, db_path, selectFromDB
+from config import settings
 import sqlite3
-import os
-import configparser
-CONFIG_FILE = "config.ini"
 FONT_SIZE = 15
 LEN_SIZE = FONT_SIZE*8+10
 
@@ -80,14 +78,7 @@ def secondsToTime(seconds):
     return "%d:%02d:%02d" % (hour, minutes, seconds)
 
 def load_ips():
-    config = configparser.ConfigParser()
-    if os.path.exists(CONFIG_FILE):
-        config.read(CONFIG_FILE)
-        return (
-            config.get("ROBOTS", "ip1", fallback="10.170.83.210"),
-            config.get("ROBOTS", "ip2", fallback="10.170.83.211")
-        )
-    return None, None
+    return settings.robot_ips()
 
 def getDateTime():
         now = datetime.now()

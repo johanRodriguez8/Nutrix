@@ -2,18 +2,12 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget
 )
 from PyQt5.QtCore import Qt
-import configparser
-import os
 from opcua import Client,Server
 from db.database import ejecutar_y_respaldar
 import platform
 import subprocess
 from robots.robot_loader import RobotLoader
-# ================= CONFIG GENERAL =================
-CONFIG_FILE = "config.ini"
-ROBOT_USER = "numtek"
-ROBOT_PASSWORD = "123"
-ROBOT_PROGRAM_DIR = "/home/numtek/Desktop/COMPARTIDA"
+from config import settings
 
 # ================= ESTILO =================
 FONT_SIZE = 20
@@ -35,47 +29,16 @@ TITULO_STYLE = f"font-size: {FONT_SIZE+10}px; font-weight:bold; color: #2596be;"
 # ================= FUNCIONES CONFIG =================
 
 def load_ips():
-    config = configparser.ConfigParser()
-    if os.path.exists(CONFIG_FILE):
-        config.read(CONFIG_FILE)
-        return (
-            config.get("ROBOTS", "ip1", fallback="10.170.83.210"),
-            config.get("ROBOTS", "ip2", fallback="10.170.83.211")
-        )
-    return "10.170.83.210", "10.170.83.211"
+    return settings.robot_ips()
 
 def save_ips(ip1, ip2):
-    config = configparser.ConfigParser()
-    config["ROBOTS"] = {"ip1": ip1, "ip2": ip2}
-    with open(CONFIG_FILE, "w") as f:
-        config.write(f)
+    settings.set_robot_ips(ip1, ip2)
 
 def load_opcua_urls():
-    config = configparser.ConfigParser()
-    if os.path.exists(CONFIG_FILE):
-        config.read(CONFIG_FILE)
-        url1 = config.get("OPCUA", "url1", fallback="opc.tcp://10.170.83.210:4840")
-        url2 = config.get("OPCUA", "url2", fallback="opc.tcp://10.170.83.211:4840")
-        return url1, url2
-    return "opc.tcp://10.170.83.210:4840", "opc.tcp://10.170.83.211:4840"
+    return settings.opcua_urls()
 
 def save_opcua_urls(url1, url2):
-    config = configparser.ConfigParser()
-    if os.path.exists(CONFIG_FILE):
-        config.read(CONFIG_FILE)
-    if "OPCUA" not in config:
-        config["OPCUA"] = {}
-    config["OPCUA"]["url1"] = url1
-    config["OPCUA"]["url2"] = url2
-    port1 = url1.split(":")
-    port1 = port1[2]
-    port2 = url2.split(":")
-    port2 = port2[2]
-    config["PORT"] = {}
-    config["PORT"]["port1"] = port1
-    config["PORT"]["port2"] = port2
-    with open(CONFIG_FILE, "w") as f:
-        config.write(f)
+    settings.set_opcua_urls(url1, url2)
 
 # ================= FUNCION PING =================
 def hacer_ping(ip):
@@ -349,8 +312,8 @@ class SubVentanaOpciones(QWidget):
 
         ip1, ip2 = load_ips()
         self.robots = [
-            RobotLoader("ROBOT 1", ip1, ROBOT_USER, ROBOT_PASSWORD, ROBOT_PROGRAM_DIR),
-            RobotLoader("ROBOT 2", ip2, ROBOT_USER, ROBOT_PASSWORD, ROBOT_PROGRAM_DIR)
+            RobotLoader("ROBOT 1", ip1, settings.ssh_user, settings.ssh_password, settings.program_dir),
+            RobotLoader("ROBOT 2", ip2, settings.ssh_user, settings.ssh_password, settings.program_dir)
         ]
 
     def open_ip(self):

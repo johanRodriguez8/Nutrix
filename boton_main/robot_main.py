@@ -13,10 +13,6 @@ from db.part_tracking.parts_timer import PartsTimer
 from utils.helpers import load_ips
 
 FONT_SIZE = 15
-CONFIG_FILE = "config.ini"
-ROBOT_USER = "numtek"
-ROBOT_PASSWORD = "123"
-ROBOT_PROGRAM_DIR = "/home/numtek/Desktop/COMPARTIDA"
 BUTTON_WIDTH = 150
 TIME_OUT = 300
 WAITING_TIME = 1

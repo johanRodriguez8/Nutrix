@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QPixmap
 from ventana_principal.principal import VentanaPrincipal
+from config import settings
 
 VENTANA_LOGIN_ANCHO = 600
 VENTANA_LOGIN_ALTO = 400
@@ -21,7 +22,7 @@ FONT_CHECKBOX = 20
 INTERVALO_CAPSLOCK = 100
 
 USUARIO_ADMIN = "admin"
-CONTRASENA_ADMIN = "123"
+CONTRASENA_ADMIN = settings.admin_password
 
 USUARIO_SIMPLE = "user"
 CONTRASENA_USUARIO_SIMPLE = "user"

@@ -2,6 +2,7 @@ import sqlite3
 import os
 import shutil
 from datetime import datetime
+from config import settings
 
 base_dir = os.path.dirname(__file__)
 #db_folder = os.path.join(base_dir, 'db')
@@ -14,7 +15,7 @@ def respaldar_base_datos():
     if os.path.exists(db_path):
         timestamp = datetime.now().strftime('%Y%m%d')
         backup_filename = f'db_backup.db'
-        shared_folder = '/home/numtek/Desktop/COMPARTIDA/backups'
+        shared_folder = settings.backup_shared_folder
         shared_backup_path = os.path.join(shared_folder, backup_filename)
         shutil.copyfile(db_path, shared_backup_path)
         backup_path_local = os.path.join(backup_folder, backup_filename)

@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget
 )
 from PyQt5.QtCore import Qt
-import configparser
 import copy
 from opcua import Client
 import paramiko
