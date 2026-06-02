@@ -1,29 +1,29 @@
-from db.connection import db
+from db.repositories.base_repository import BaseRepository
 
 
-class CurrentPartsRepository:
+class CurrentPartsRepository(BaseRepository):
     def all_ids(self):
-        return db.query("SELECT part_id FROM currentParts")
+        return self._db.query("SELECT part_id FROM currentParts")
 
     def all_ids_ordered(self):
-        return db.query("SELECT DISTINCT part_id FROM currentParts ORDER BY part_id")
+        return self._db.query("SELECT DISTINCT part_id FROM currentParts ORDER BY part_id")
 
     def drying_or_waiting_ids(self):
-        return db.query(
+        return self._db.query(
             "SELECT part_id FROM currentParts WHERE state='DRYING' OR state='WAITING'"
         )
 
     def get_id(self, part_id):
-        return db.query("SELECT part_id FROM currentParts WHERE part_id = ?", (part_id,))
+        return self._db.query("SELECT part_id FROM currentParts WHERE part_id = ?", (part_id,))
 
     def get_state(self, part_id):
-        return db.query("SELECT state FROM currentParts WHERE part_id=?", (part_id,))
+        return self._db.query("SELECT state FROM currentParts WHERE part_id=?", (part_id,))
 
     def get_program_id(self, part_id):
-        return db.query("SELECT program_id FROM currentParts WHERE part_id=?", (part_id,))
+        return self._db.query("SELECT program_id FROM currentParts WHERE part_id=?", (part_id,))
 
     def get_trace_programs(self, part_id):
-        return db.query("""
+        return self._db.query("""
             SELECT program_id, part_num, min_drying_time, max_drying_time,
             robot_num, state, start_date, start_time, end_date, end_time,
             run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end,
@@ -33,29 +33,29 @@ class CurrentPartsRepository:
         """, (part_id,))
 
     def get_program_location(self, part_id):
-        return db.query(
+        return self._db.query(
             "SELECT program_id, current_hanger, current_conveyor FROM currentParts WHERE part_id=?",
             (part_id,),
         )
 
     def set_state(self, state, part_id):
-        db.execute("UPDATE currentParts SET state=? WHERE part_id=?", (state, part_id))
+        self._db.execute("UPDATE currentParts SET state=? WHERE part_id=?", (state, part_id))
 
     def set_location(self, current_hanger, current_conveyor, part_id):
-        db.execute(
+        self._db.execute(
             "UPDATE currentParts SET current_hanger = ?, current_conveyor = ? WHERE part_id = ?",
             (current_hanger, current_conveyor, part_id),
         )
 
     def delete(self, part_id):
-        db.execute("DELETE FROM currentParts WHERE part_id=?", (part_id,))
+        self._db.execute("DELETE FROM currentParts WHERE part_id=?", (part_id,))
 
     def upsert(self, values):
         """Insert-or-update a full currentParts row.
 
         ``values`` is the 23-tuple matching the column list below.
         """
-        db.execute("""
+        self._db.execute("""
         INSERT INTO currentParts(
             part_id, part_num, current_step, program_id,
             robot_num, min_drying_time, max_drying_time, state,
@@ -96,7 +96,7 @@ class CurrentPartsRepository:
 
     def reset_to_ready(self, current_step, start_date, start_time, end_date, end_time,
                        run_time, station, time_deviation, program_id, part_id):
-        db.execute("""
+        self._db.execute("""
             UPDATE currentParts SET current_step=?, state = 'READY', start_date = ?,
             start_time = ?, end_date = ?, end_time = ?, run_time = ?,
             station = ?, time_deviation=?, program_id=? WHERE part_id=?
@@ -108,7 +108,7 @@ class CurrentPartsRepository:
 
         ``values`` matches the placeholder order in the statement.
         """
-        db.execute("""
+        self._db.execute("""
             UPDATE currentParts SET current_step=?, robot_num=?, min_drying_time=?,
             max_drying_time=?, state='READY', start_date=?, start_time=?, end_date=?,
             end_time=?, run_time=?, station=?, hanger_id=?, hanger_num=?,

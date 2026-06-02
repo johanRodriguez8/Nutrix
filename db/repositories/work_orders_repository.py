@@ -1,6 +1,6 @@
-from db.connection import db
+from db.repositories.base_repository import BaseRepository
 
 
-class WorkOrdersRepository:
+class WorkOrdersRepository(BaseRepository):
     def distinct_order_ids(self):
-        return db.query("SELECT DISTINCT order_id FROM workOrders ORDER BY order_id")
+        return self._db.query("SELECT DISTINCT order_id FROM workOrders ORDER BY order_id")
