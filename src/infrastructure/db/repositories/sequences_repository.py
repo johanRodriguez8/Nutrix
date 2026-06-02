@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import defaultdict
 
 from src.infrastructure.db.repositories.base_repository import BaseRepository

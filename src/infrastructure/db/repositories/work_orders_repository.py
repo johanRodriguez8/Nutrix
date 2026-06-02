@@ -1,3 +1,4 @@
+from __future__ import annotations
 from src.infrastructure.db.repositories.base_repository import BaseRepository
 from src.domain.ports.i_work_order_repository import IWorkOrderRepository
 from src.domain.entities.work_order import WorkOrder

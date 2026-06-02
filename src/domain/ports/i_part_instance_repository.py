@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from src.domain.entities.part_instance import PartInstance
 

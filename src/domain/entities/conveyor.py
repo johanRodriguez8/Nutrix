@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from src.domain.value_objects.conveyor_status import ConveyorStatus
 

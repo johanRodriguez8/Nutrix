@@ -1,3 +1,4 @@
+from __future__ import annotations
 from src.infrastructure.db.repositories.base_repository import BaseRepository
 from src.domain.ports.i_program_repository import IProgramRepository
 from src.domain.entities.program import Program

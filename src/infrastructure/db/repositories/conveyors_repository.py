@@ -1,3 +1,4 @@
+from __future__ import annotations
 from src.infrastructure.db.repositories.base_repository import BaseRepository
 from src.domain.ports.i_conveyor_repository import IConveyorRepository
 from src.domain.entities.conveyor import Conveyor

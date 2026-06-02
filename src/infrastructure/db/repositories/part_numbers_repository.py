@@ -1,3 +1,4 @@
+from __future__ import annotations
 from src.infrastructure.db.repositories.base_repository import BaseRepository
 from src.domain.ports.i_part_number_repository import IPartNumberRepository
 from src.domain.entities.part_number import PartNumber
