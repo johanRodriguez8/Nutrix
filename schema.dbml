@@ -1,0 +1,139 @@
+// Nutrix — database schema
+// Paste at https://dbdiagram.io/d to visualize
+
+Table users {
+  user_id   integer [pk, increment]
+  user_name text    [unique, not null]
+  password  text    [not null]
+  role      text    [default: 'user']
+}
+
+Table programs {
+  program_id     text [pk]
+  path           text [default: '']
+  robot_num      text [not null]
+  conveyor_start text
+  conveyor_end   text
+}
+
+Table sequences {
+  sequence_id text [pk, not null]
+}
+
+Table sequence_steps {
+  sequence_id     text    [not null]
+  step            integer [not null]
+  program_id      text    [not null]
+  min_drying_time text    [not null]
+  max_drying_time text    [not null]
+
+  indexes {
+    (sequence_id, step) [pk]
+  }
+}
+
+Table conveyors {
+  hanger_id  integer [pk]
+  hanger_num integer [not null]
+  conveyor   text    [not null]
+  status     text    [default: 'EMPTY']
+  enable     integer [default: 1]
+  part_id    text    [note: 'FK → part_instances — null when hanger is empty']
+  part_num   text
+  order_id   text
+
+  indexes {
+    (hanger_num, conveyor) [unique]
+  }
+}
+
+Table partNumbers {
+  part_num    text [pk, not null]
+  sequence_id text
+}
+
+Table workOrders {
+  order_id   text    [not null]
+  part_num   text    [not null]
+  customer   text
+  target_qty integer
+
+  indexes {
+    (order_id, part_num) [pk]
+  }
+}
+
+// Master record for every active part — created at registration,
+// deleted when the last step completes and the part moves to history.
+// Absorbs the old parts + currentParts tables.
+// Snapshot columns (robot_num, min/max_drying_time, conveyor_start/end,
+// hanger_num) are derivable via JOIN and excluded.
+Table part_instances {
+  part_id          text    [pk]
+  part_num         text    [not null]
+  order_id         text
+  current_step     integer
+  program_id       text
+  state            text    [default: 'IDLE']
+  start_datetime   text    [not null, note: 'part registration time']
+  end_datetime     text
+  run_time         text    [default: '00:00']
+  station          text
+  hanger_id        integer [note: 'current hanger for this step']
+  hanger_end       text    [note: 'destination hanger — not stored elsewhere']
+  time_deviation   text    [default: '00:00']
+  current_hanger   text    [note: 'live position during robot movement']
+  current_conveyor text    [note: 'live conveyor during robot movement']
+}
+
+// Immutable audit log.
+// part_id has NO FK enforcement — part_instances row is deleted on
+// completion, so a FK would fail. part_id is a natural grouping key.
+// part_num and order_id kept as snapshots: once part_instances is
+// deleted they are the only record of part-level context.
+Table history {
+  part_id         text    [not null, note: 'natural key — no FK, part_instances deleted on completion']
+  step            integer [not null]
+  part_num        text    [note: 'SNAPSHOT: no master table after part completes']
+  order_id        text    [note: 'SNAPSHOT: no master table after part completes']
+  program_id      text
+  robot_num       text    [note: 'SNAPSHOT: programs value at execution time']
+  min_drying_time text    [note: 'SNAPSHOT: sequence_steps value at execution time']
+  max_drying_time text    [note: 'SNAPSHOT: sequence_steps value at execution time']
+  conveyor_start  text    [note: 'SNAPSHOT: programs value at execution time']
+  conveyor_end    text    [note: 'SNAPSHOT: programs value at execution time']
+  state           text    [default: 'IDLE']
+  start_datetime  text
+  end_datetime    text
+  run_time        text    [default: '00:00']
+  station         text
+  hanger_id       integer
+  hanger_end      text
+  time_deviation  text    [default: '00:00']
+  upload_date     text
+
+  indexes {
+    (part_id, step) [pk]
+  }
+}
+
+// ── Relationships ──────────────────────────────────────────────────────────
+
+Ref: sequence_steps.sequence_id > sequences.sequence_id
+Ref: sequence_steps.program_id  > programs.program_id
+
+Ref: partNumbers.sequence_id    > sequences.sequence_id
+
+Ref: conveyors.part_id          > part_instances.part_id    // deferred (circular)
+Ref: conveyors.part_num         > partNumbers.part_num
+
+Ref: part_instances.part_num          > partNumbers.part_num
+Ref: part_instances.(order_id, part_num) > workOrders.(order_id, part_num)
+Ref: part_instances.program_id        > programs.program_id
+Ref: part_instances.hanger_id         > conveyors.hanger_id // deferred (circular)
+
+// history.part_id intentionally has no Ref — natural key only
+Ref: history.program_id > programs.program_id
+Ref: history.hanger_id  > conveyors.hanger_id
+
+Ref: workOrders.part_num > partNumbers.part_num

@@ -5,15 +5,17 @@ through one short-lived, properly committed/rolled-back connection, and
 backups happen *explicitly* (startup / shutdown / on demand) instead of
 on every write.
 """
-import os
 import shutil
 import sqlite3
 from contextlib import contextmanager
-from config import settings
+from pathlib import Path
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "db.db")
-_BACKUP_FOLDER = os.path.join(os.path.dirname(__file__), "backups")
-os.makedirs(_BACKUP_FOLDER, exist_ok=True)
+from src.infrastructure.config.settings import settings
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DB_PATH = str(_PROJECT_ROOT / "db" / "db.db")
+_BACKUP_FOLDER = str(_PROJECT_ROOT / "db" / "backups")
+Path(_BACKUP_FOLDER).mkdir(parents=True, exist_ok=True)
 
 
 class Database:
@@ -25,7 +27,7 @@ class Database:
     by a write — call :meth:`backup` when you actually want one.
     """
 
-    def __init__(self, path=DB_PATH):
+    def __init__(self, path: str = DB_PATH):
         self.path = path
 
     @contextmanager
@@ -81,22 +83,21 @@ class Database:
         return row[0] if row else None
 
     def drop_table(self, name):
-        """Drop a table by name (admin/debug use)."""
         self.execute(f"DROP TABLE {name}")
 
     def backup(self):
         """Copy the DB file to the shared folder and a local backups dir."""
+        import os
         if not os.path.exists(self.path):
             print("⚠️ No se encontró la base de datos para respaldar.")
             return
         backup_filename = "db_backup.db"
         try:
-            shared = os.path.join(settings.backup_shared_folder, backup_filename)
+            shared = str(Path(settings.backup_shared_folder) / backup_filename)
             shutil.copyfile(self.path, shared)
         except Exception as e:
             print(f"⚠️ No se pudo respaldar en carpeta compartida: {e}")
-        shutil.copyfile(self.path, os.path.join(_BACKUP_FOLDER, backup_filename))
+        shutil.copyfile(self.path, str(Path(_BACKUP_FOLDER) / backup_filename))
 
 
-# Module-level singleton — import this everywhere.
 db = Database()
