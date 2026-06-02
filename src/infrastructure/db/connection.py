@@ -19,13 +19,6 @@ Path(_BACKUP_FOLDER).mkdir(parents=True, exist_ok=True)
 
 
 class Database:
-    """Thin, thread-safe access layer over a SQLite file.
-
-    A fresh connection is opened per operation (safe across the Qt /
-    robot worker threads) and always closed. Writes commit on success
-    and roll back on failure. Backups are never triggered automatically
-    by a write — call :meth:`backup` when you actually want one.
-    """
 
     def __init__(self, path: str = DB_PATH):
         self.path = path
