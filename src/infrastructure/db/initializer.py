@@ -1,8 +1,10 @@
 from src.infrastructure.db.connection import db
+from src.infrastructure.config.settings import settings
 
 def initialize():
     db.backup()
     _create_users()
+    _seed_users()
     _create_programs()
     _create_sequences()
     _create_sequence_steps()
@@ -160,6 +162,17 @@ def _create_history():
 
 
 # ── seed data ─────────────────────────────────────────────────────────────────
+
+def _seed_users():
+    db.execute(
+        "INSERT OR IGNORE INTO users (user_name, password, role) VALUES (?,?,?)",
+        ("admin", settings.admin_password, "admin"),
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO users (user_name, password, role) VALUES (?,?,?)",
+        ("user", "user", "user"),
+    )
+
 
 _CONVEYOR_HANGERS = {
     'A': 30,
