@@ -2,12 +2,34 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget
 )
 from PyQt5.QtCore import Qt
-from opcua import Client,Server
+from opcua import Client, Server
 from db.repositories import programs_repo
 import platform
 import subprocess
 from robots.robot_loader import RobotLoader
 from config import settings
+from config.settings import DEV_MODE
+
+SIM_STYLE_ON = f"""
+QPushButton {{
+    background-color: #e6a817;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    padding: 7px;
+    border-radius: 5px;
+}}
+"""
+SIM_STYLE_OFF = f"""
+QPushButton {{
+    background-color: #555;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    padding: 7px;
+    border-radius: 5px;
+}}
+"""
 
 # ================= ESTILO =================
 FONT_SIZE = 20
@@ -111,6 +133,10 @@ class ConfigIPWindow(QWidget):
         self.setLayout(layout)
 
     def ping_robot(self, ip, led_label):
+        if settings.simulation:
+            led_label.setStyleSheet(f"color: orange; font-size: {FONT_SIZE+4}px;")
+            led_label.setToolTip("SIMULATION MODE")
+            return
         if not ip:
             QMessageBox.warning(self, "ERROR", "FIRST TYPE IP")
             return
@@ -182,6 +208,10 @@ class OpcuaConfigWindow(QWidget):
         self.setLayout(layout)
 
     def ping_opcua(self, url, led_label):
+        if settings.simulation:
+            led_label.setStyleSheet(f"color: orange; font-size: {FONT_SIZE+4}px;")
+            led_label.setToolTip("SIMULATION MODE")
+            return
         if not url:
             QMessageBox.warning(self, "ERROR", "FIRST TYPE OPCUA URL")
             return
@@ -190,7 +220,6 @@ class OpcuaConfigWindow(QWidget):
             client.connect()
             client.disconnect()
             led_label.setStyleSheet(f"color: green; font-size: {FONT_SIZE+4}px;")
-            #QMessageBox.information(self, "OK", "OPC UA Server OK")
         except Exception as e:
             led_label.setStyleSheet(f"color: red; font-size: {FONT_SIZE+4}px;")
             QMessageBox.critical(self, "ERROR", f"OPC UA Server NO responde\n{e}")
@@ -305,6 +334,12 @@ class SubVentanaOpciones(QWidget):
         btn_opcua.clicked.connect(self.opcua_port_config)
         layout.addWidget(btn_opcua)
 
+        if DEV_MODE:
+            self.btn_sim = QPushButton()
+            self._refresh_sim_button()
+            self.btn_sim.clicked.connect(self.toggle_simulation)
+            layout.addWidget(self.btn_sim)
+
         layout.addStretch()
         self.setLayout(layout)
 
@@ -325,3 +360,17 @@ class SubVentanaOpciones(QWidget):
     def opcua_port_config(self):
         self.opcua_window = OpcuaConfigWindow()
         self.opcua_window.show()
+
+    def toggle_simulation(self):
+        settings.simulation = not settings.simulation
+        self._refresh_sim_button()
+        state = "ON" if settings.simulation else "OFF"
+        QMessageBox.information(self, "SIMULATION MODE", f"Simulation mode is now {state}.\nReconnect robots to apply.")
+
+    def _refresh_sim_button(self):
+        if settings.simulation:
+            self.btn_sim.setText("SIMULATION MODE: ON  (click to disable)")
+            self.btn_sim.setStyleSheet(SIM_STYLE_ON)
+        else:
+            self.btn_sim.setText("SIMULATION MODE: OFF  (click to enable)")
+            self.btn_sim.setStyleSheet(SIM_STYLE_OFF)

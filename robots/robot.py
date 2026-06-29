@@ -2,13 +2,37 @@ import time
 import threading
 from opcua import Client
 import queue
+from config import settings
 UPDATE_TIME = 5
+
+
+class _SimNode:
+    """Fake OPC-UA node for offline/simulation mode."""
+    def __init__(self, name, value):
+        self._name = name
+        self._value = value
+
+    def get_browse_name(self):
+        class _N:
+            def __init__(self, n): self.Name = n
+        return _N(self._name)
+
+    def get_value(self):
+        return self._value
+
+    def set_value(self, v):
+        self._value = type(self._value)(v)
+
+    def get_children(self):
+        return []
+
+
 class Robot:
-    def __init__(self, ip, port, name):
+    def __init__(self, ip, port, name, simulation=False):
         self.ip = ip
         self.port = port
         self.name = name
-        self.client = Client(f"opc.tcp://{self.ip}:{self.port}")
+        self.simulation = simulation
         self._thread_started = False
         self.client = None
         self.connected = False
@@ -60,7 +84,36 @@ class Robot:
         self.leftConvD = 0
 
 
+    def _sim_setup(self):
+        # Simulate a robot sitting idle and ready, conveyors in position
+        defaults = [
+            True,  # 0 machine_ready
+            False, # 1 program_running
+            False, # 2 program_paused
+            True,  # 3 program_idle
+            True,  # 4 program_loaded
+            True,  # 5 machine_on
+            True,  # 6 home_all
+            True,  # 7 convA/C ok
+            True,  # 8 convB/D ok
+            False, # 9 takenConvA/C
+            False, # 10 leftConvA/C
+            False, # 11 takenConvB/D
+            False, # 12 leftConvB/D
+        ]
+        self.inputs = [_SimNode(f"input{i}", defaults[i]) for i in range(13)]
+        self.outputs = [_SimNode(f"output{i}", False) for i in range(4)]
+        self.floatInputs = [_SimNode(f"floatinput{i}", 0.0) for i in range(4)]
+        self.floatOutputs = [_SimNode(f"floatoutput{i}", 0.0) for i in range(4)]
+        self.floats = []
+
     def connect(self):
+        if self.simulation or settings.simulation:
+            self._sim_setup()
+            self.connected = True
+            print(f"{self.name}: running in SIMULATION mode")
+            return
+
         try:
             if self.client is None:
                 self.client = Client(f"opc.tcp://{self.ip}:{self.port}")
@@ -81,6 +134,8 @@ class Robot:
             print(f"ERROR ROBOT {self.name}: {e}")
 
     def classify(self):
+        if self.simulation or settings.simulation:
+            return
         self._browse(self.robot)
 
     def _browse(self, node):
@@ -182,7 +237,7 @@ class Robot:
             time.sleep(UPDATE_TIME)
 
     def stopListening(self):
-        if self.client:
+        if self.client and not self.simulation:
             self.client.disconnect()
         self.isListening = False
         if hasattr(self, "conn_thread") and self.conn_thread.is_alive():

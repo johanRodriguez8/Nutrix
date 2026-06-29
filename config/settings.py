@@ -1,6 +1,8 @@
 import configparser
 import os
 
+DEV_MODE = False  # set to False before shipping to production
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.ini")
 
@@ -16,6 +18,7 @@ _DEFAULTS = {
     },
     "BACKUP": {"shared_folder": "/home/johan/Desktop"},
     "ADMIN": {"password": "123"},
+    "SIMULATION": {"enabled": "false"},
 }
 
 
@@ -90,6 +93,15 @@ class Settings:
     @property
     def admin_password(self):
         return self._parser.get("ADMIN", "password")
+
+    @property
+    def simulation(self):
+        return self._parser.getboolean("SIMULATION", "enabled")
+
+    @simulation.setter
+    def simulation(self, value: bool):
+        self._parser.set("SIMULATION", "enabled", "true" if value else "false")
+        self.save()
 
 
 settings = Settings()

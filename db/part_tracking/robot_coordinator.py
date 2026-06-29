@@ -10,6 +10,7 @@ from utils.helpers import getTimeBetween, secondsToTime
 from robots.robot_loader import RobotLoader
 from robots.robot import Robot
 from debugging.debuggin_window import DualConsole
+from config import settings
 
 TIME_OUT = 300 #Tiempo que espera una conexion antes de desconectarse. Esta definida en segundos
 TIME_OUT_2 = 120 #Tiempo que espera una conexion antes de desconectarse. Esta definida en segundos
@@ -59,6 +60,36 @@ class RobotCoordinator(QObject):
         self.loader = self.loader1 if int(program.robot_num) == 1 else self.loader2
         #Toma como entrada un objeto Part
         print(f"PROGRAM STARTING ROBOT NUM: {program.robot_num}")
+
+        if settings.simulation:
+            startTime = datetime.now().strftime("%H:%M:%S")
+            program.start_time = startTime
+            program.start_date = datetime.now().strftime("%m/%d/%Y")
+            time.sleep(1)
+            program.state = 'RUNNING'
+            part.updateAll()
+            self.programRunning.emit(part, program)
+            time.sleep(2)
+            program.state = 'DRYING'
+            self.timer.addDryingPart(part)
+            endTime = datetime.now().strftime("%H:%M:%S")
+            program.end_time = endTime
+            program.run_time = getTimeBetween(startTime, endTime)
+            auxHanger, auxConv = self.queueManager.getNextHangerConveyor(program)
+            program.current_hanger = copy.deepcopy(auxHanger)
+            program.current_conveyor = copy.deepcopy(auxConv)
+            program.hanger_end = copy.deepcopy(auxHanger)
+            program.conveyor_end = copy.deepcopy(auxConv)
+            part.updateAll()
+            part.putInConveyor(program.current_conveyor, program.current_hanger)
+            self.programEnded.emit(part, program)
+            self.queueManager.isBTaken = 0
+            if robotNum == 1:
+                self.queueManager.currentPartRobot1 = None
+            else:
+                self.queueManager.currentPartRobot2 = None
+            return True
+
         if self.loader.connected:
             print(f"paso1")
             #Espera a que el siguiente hanger este en ṕosición
@@ -265,6 +296,8 @@ class RobotCoordinator(QObject):
         
     def waitForHanger(self, program, part):
         part.updateAll()
+        if settings.simulation:
+            return
         self.sendOutput(program.conveyor_start, program.hanger_num)
         time.sleep(1)
         if program.conveyor_start == 'A':
@@ -298,6 +331,8 @@ class RobotCoordinator(QObject):
 
     def waitForEndHangerOk(self, program, part):
         part.updateAll()
+        if settings.simulation:
+            return
         nextHanger, conveyorEnd = self.queueManager.getNextHangerConveyor(program)
         # print(f"SENDING HANGER END: {nextHanger}{conveyorEnd}")
         # print(f"COMPARISON HANGER END: {program.hanger_end}{program.conveyor_end}")
@@ -337,9 +372,10 @@ class RobotCoordinator(QObject):
         #TODO: QUITAR TODOS LOS IF Y PRINT DE DEBUG
 
     def checkForAlarm(self, currentPart=None):
+        if settings.simulation:
+            return False
         robot = self.robot1 if self.robotNum == 1 else self.robot2
         if not robot.machine_on:
-            #print(f"R{self.robotNum}: INTERRUMPIO ")
             if currentPart != None:
                 program = currentPart.getCurrentProgram()
                 program.state = "ALARM"

@@ -11,6 +11,7 @@ from db.part_tracking.robot_coordinator import RobotCoordinator
 from db.part_tracking.program_queue_manager import ProgramQueueManager
 from db.part_tracking.parts_timer import PartsTimer
 from utils.helpers import load_ips
+from config import settings
 
 FONT_SIZE = 15
 BUTTON_WIDTH = 150
@@ -315,6 +316,11 @@ class MainRobotWindow(QWidget):
             print("ERROR")
 
     def connectToLoader(self, loader, robotIndex):
+        if settings.simulation:
+            loader.connected = True
+            self.connLabels[robotIndex].setText("SIMULATING")
+            self.connLabels[robotIndex].setStyleSheet("color: white; background: orange")
+            return
         if loader.connect():
             self.connLabels[robotIndex].setText("CONNECTED")
             self.connLabels[robotIndex].setStyleSheet("color: white; background: green")

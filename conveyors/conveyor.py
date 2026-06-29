@@ -58,11 +58,13 @@ class TablaConveyor(QWidget):
             if status == "FULL":
                 seqId = part_numbers_repo.get_sequence_id(part_num)
                 state = current_parts_repo.get_state(part_id)
-                item_seqId = QTableWidgetItem(seqId[0][0])
-                current_state = state[0][0]
+                item_seqId = QTableWidgetItem(seqId[0][0] if seqId else "-")
+                current_state = state[0][0] if state else "DONE"
                 item_state = QTableWidgetItem(current_state)
                 if current_state == "ALARM":
                     item_state.setBackground(QtGui.QColor("red"))
+                elif current_state == "DONE":
+                    item_state.setBackground(QtGui.QColor("#d0d0d0"))
                 else:
                     item_state.setBackground(QtGui.QColor("#c8f7c5"))
             else:
