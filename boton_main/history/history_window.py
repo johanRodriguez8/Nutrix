@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QComboBox, QScrollArea, QMainWindow, QSizePolicy, QFrame, QGridLayout, QFileDialog, QDateEdit, QCheckBox, QLineEdit, QMessageBox
+    QHeaderView, QScrollArea, QMainWindow, QSizePolicy, QFrame, QGridLayout, QFileDialog, QDateEdit, QCheckBox, QLineEdit, QMessageBox
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QDate
 from PyQt5 import QtGui
@@ -49,7 +49,6 @@ class HistoryWindow(QMainWindow):
         self.currentEndDate = fecha
         self.currentStartDate = fecha
         self.isUsingDate = 2
-        self.isUsingStatus = 2
         self.currentFilterIndex = 0
         self.order_id = ""
         self.part_num = ""
@@ -256,28 +255,11 @@ class HistoryWindow(QMainWindow):
         self.endTimeLabel.setDate(qdateEnd)
         gridLayout.addWidget(self.endTimeLabel, 2, 4)
 
-        self.timeVariableBox = QComboBox() 
-        self.timeVariableBox.addItems(["UPLOAD TIME", "START TIME", "END TIME"])
-        self.timeVariableBox.setCurrentIndex(self.currentFilterIndex)
-        self.timeVariableBox.currentIndexChanged.connect(self.onChangedIndex)
-        gridLayout.addWidget(self.timeVariableBox, 1, 5)
-
         self.dateCheckBox = QCheckBox("FILTER BY DATE", self)
         self.dateCheckBox.setTristate(False)
         self.dateCheckBox.setCheckState(self.isUsingDate)
         #self.dateCheckBox.stateChanged.connect(self.onChangedStateCheck)
         gridLayout.addWidget(self.dateCheckBox, 2, 5)
-
-        self.statusVariableBox = QComboBox() 
-        self.statusVariableBox.addItems([ "VIRGIN PARTS", "CURRENT PARTS", "TERMINATED PARTS"])
-        self.statusVariableBox.setCurrentIndex(self.currentFilterIndex)
-        self.statusVariableBox.currentIndexChanged.connect(self.onChangedIndex)
-        gridLayout.addWidget(self.statusVariableBox, 1, 6)
-        self.statusCheckBox = QCheckBox("FILTER BY STATUS", self)
-        self.statusCheckBox.setTristate(False)
-        self.statusCheckBox.setCheckState(self.isUsingStatus)
-        #self.statusCheckBox.stateChanged.connect(self.onChangedStateCheck)
-        gridLayout.addWidget(self.statusCheckBox, 2, 6)
 
         self.filterBtn = QPushButton("FILTER")
         self.filterBtn.clicked.connect(self.loadFilteredUI)
@@ -288,24 +270,15 @@ class HistoryWindow(QMainWindow):
 
         self.layout.addLayout(gridLayout)
     def onChangedStateCheck(self):
-        #print(f"IS CHECKED: {self.dateCheckBox.isChecked()}")
         self.isUsingDate = 2 if self.dateCheckBox.isChecked() else 0
-        if self.timeVariableBox.currentIndex() <= 2:
-            self.isUsingDate = 2
-            self.dateCheckBox.setCheckState(Qt.Checked)
-    def onChangedIndex(self):
-        self.currentFilterIndex =self.timeVariableBox.currentIndex()
     def loadFilteredUI(self):
         if self.verifyDates():
             self.currentStartDate = self.startTimeLabel.text()
             self.currentEndDate = self.endTimeLabel.text()
-            timeVariable = self.timeVariableBox.currentText()
-            statusVariable = self.statusVariableBox.currentText()
             self.part_num = self.partNumField.text()
             self.order_id = self.orderIdField.text()
             self.isUsingDate = self.dateCheckBox.isChecked()
-            self.isUsingStatus = self.statusCheckBox.isChecked()
-            ids = self.filter.filter(self.currentStartDate, self.currentEndDate, timeVariable, self.isUsingDate, statusVariable, self.isUsingStatus, self.part_num, self.order_id)
+            ids = self.filter.filter(self.currentStartDate, self.currentEndDate, "START TIME", self.isUsingDate, "VIRGIN PARTS", False, self.part_num, self.order_id)
             #print(f"FILTER IDS: {ids} ")
             self.uiIds = ids
             self.loadLayout()
