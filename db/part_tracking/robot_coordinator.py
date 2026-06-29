@@ -288,10 +288,8 @@ class RobotCoordinator(QObject):
 
 
     def stopCycle(self):
-        print(f"hola**********************************************************")
         self.stopProcessing = True
-        # self.stop = True
-        #self.timer.stopTimer()
+        self.fullStop = True
         self.dc.print(f"R{self.robotNum}: Cycle stopped and thread finished", self.robotNum)
         
     def waitForHanger(self, program, part):

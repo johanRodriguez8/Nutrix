@@ -240,8 +240,10 @@ class Robot:
         if self.client and not self.simulation:
             self.client.disconnect()
         self.isListening = False
+
+    def joinListeningThread(self):
         if hasattr(self, "conn_thread") and self.conn_thread.is_alive():
-            self.conn_thread.join()  # Waits for thread to finish safely
+            self.conn_thread.join()
         print("Cycle stopped and thread finished")
         
 

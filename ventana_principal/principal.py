@@ -186,21 +186,25 @@ class VentanaPrincipal(QMainWindow):
                 self.confirmado_para_salir = True
                 db.backup()  # Respaldo explícito al cerrar (ya no por cada escritura)
                 QApplication.closeAllWindows()
+                # Signal all threads to stop (non-blocking)
                 robot1.stopListening()
                 robot2.stopListening()
                 partsTimer.stopTimer()
-                robot2Loader.stopConnection()
                 robot1Loader.stopConnection()
+                robot2Loader.stopConnection()
                 robot1Coordinator.stopCycle()
                 robot2Coordinator.stopCycle()
-                timer_thread.requestInterruption() # 1. Solicitar alto
-                timer_thread.quit()                # 3. Salir del bucle de eventos
+                timer_thread.requestInterruption()
+                timer_thread.quit()
+                coordinator1Thread.requestInterruption()
+                coordinator1Thread.quit()
+                coordinator2Thread.requestInterruption()
+                coordinator2Thread.quit()
+                # Now wait for all threads to finish
+                robot1.joinListeningThread()
+                robot2.joinListeningThread()
                 timer_thread.wait()
-                coordinator1Thread.requestInterruption() # 1. Solicitar alto
-                coordinator1Thread.quit()                # 3. Salir del bucle de eventos
                 coordinator1Thread.wait()
-                coordinator2Thread.requestInterruption() # 1. Solicitar alto
-                coordinator2Thread.quit()                # 3. Salir del bucle de eventos
                 coordinator2Thread.wait()
                 event.accept()
             else:
