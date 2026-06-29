@@ -176,8 +176,9 @@ class RobotCoordinator(QObject):
             return 
         self.currentPart = self.queueManager.getNextPart(self.robotNum)
         if self.currentPart != None:
-            self.currentPart.getCurrentProgram().current_hanger = copy.deepcopy(self.currentPart.getCurrentProgram().hanger_num)
-            self.currentPart.getCurrentProgram().current_conveyor = copy.deepcopy(self.currentPart.getCurrentProgram().conveyor_start)
+            if self.currentPart.getCurrentProgram().state != "WAITING":
+                self.currentPart.getCurrentProgram().current_hanger = copy.deepcopy(self.currentPart.getCurrentProgram().hanger_num)
+                self.currentPart.getCurrentProgram().current_conveyor = copy.deepcopy(self.currentPart.getCurrentProgram().conveyor_start)
             if self.lastPart: 
                 self.changedPart.emit(self.lastPart, self.currentPart, self.robotNum)
             else:
