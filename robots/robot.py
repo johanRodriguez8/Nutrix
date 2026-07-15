@@ -84,10 +84,11 @@ class Robot:
         self.leftConvD = 0
 
 
+    #only for simulation in developer mode
     def _sim_setup(self):
         # Simulate a robot sitting idle and ready, conveyors in position
         defaults = [
-            True,  # 0 machine_ready
+            True,  # 0
             False, # 1 program_running
             False, # 2 program_paused
             True,  # 3 program_idle
@@ -337,6 +338,7 @@ class Robot:
         print("Machine On:", self.machine_on)
         print("Home All:", self.home_all)
         #print("Alarm:", self.alarm)
+
     def set_float_output(self, index, value):
         """
         Set a floating-point output value.

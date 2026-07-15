@@ -15,7 +15,7 @@ class ProgramQueueManager():
         self.timer = timer
         self.robot1 = robot1
         self.robot2 = robot2
-        self.aToa = ["001", "021", "004", "024"]
+        self.aToa = ["001","003", "021", "004", "024"]
         self.aTob = ["081", "084"]
         self.bToc = ["211", "212", "216"]
         self.cToc = ["251", "252", "254"]
@@ -27,16 +27,20 @@ class ProgramQueueManager():
         self.isBTaken = 0
         #self.otherRobotNum = 1 if self.robotNum == 2 else 2
         self.updateQueueOfParts()
+
     def setQueue(self, queue):
         self.mainQueue = queue
         self.currentPartRobot1 = self.mainQueue[0]
+
     def isEmpty(self):
         return bool(self.mainQueue)
+
     def getNextPart(self, robotNum):
         #Primero revisa la cola de prioridad
         self.updateQueueOfParts()
+        
         if self.currentPartRobot1 == None and robotNum == 1:
-            #print("NO HABIA PARTE ACTUAL DEL ROBOT1")
+            print("NO HABIA PARTE ACTUAL DEL ROBOT1")
             emptyProgram = Program()
             emptyProgram.current_hanger = copy.deepcopy(self.robot1.reader_float[0]) 
             emptyProgram.current_conveyor = "A"
@@ -157,6 +161,8 @@ class ProgramQueueManager():
             return hangerEnd - hangerStart
         else:
             return hangerEnd - hangerStart + length
+
+            
     def updateQueueOfParts(self):
         #Obtenemos todos los ids de partes
         currentParts = current_parts_repo.all_ids()
@@ -207,6 +213,11 @@ class ProgramQueueManager():
             return #La pieza terminó; no se vuelve a escribir en currentParts
 
         part.updateAll() #Actualización en base de datos
+
+
+    def jumpToStartingStep(self, starting_step: int):
+        for i in range(starting_step):
+            self.passToNextProgram()
 
     def getNextHangerConveyor(self, program:Program):
         hanger_end = None

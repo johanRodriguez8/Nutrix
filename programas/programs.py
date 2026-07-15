@@ -1,23 +1,44 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QTableWidget,
-    QTableWidgetItem, QHeaderView, QHBoxLayout, QInputDialog, QMessageBox, QDialog,QFileDialog,
+    QTableWidgetItem, QHeaderView, QHBoxLayout, QInputDialog, QMessageBox, QDialog, QFileDialog,
     QDialogButtonBox, QComboBox, QGridLayout, QLineEdit
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from db.repositories import programs_repo
 from utils.helpers import FONT_SIZE, LEN_SIZE
+from robots.robot_loader import RobotLoader
+
 from config import settings
 import os
-import paramiko
 
-R1_IP = settings.ip1
-R2_IP = settings.ip2
-port = 4840 # SSH port used to reach the robot controllers
-username = settings.ssh_user
-password = settings.ssh_password
 COMPARTIDA_INICIAL = settings.program_dir
+
+
+class ProgramLoaderWorker(QThread):
+    """Corre la conexión SSH/SFTP y el listado de programas en un hilo
+    aparte para no congelar la UI mientras se espera la respuesta del robot."""
+    finished = pyqtSignal(list)
+
+    def __init__(self, robot):
+        super().__init__()
+        self.robot = robot
+
+    def run(self):
+        files = []
+        try:
+            self.robot.connect()
+            programs = self.robot.list_programs()
+            for entry in programs:
+                if entry[1:4].isnumeric():
+                    files.append(entry)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            files.append("Unconnected")
+        self.finished.emit(sorted(files))
+
+
 class VentanaProgramas(QWidget):
     def __init__(self):
         super().__init__()
@@ -80,7 +101,7 @@ class VentanaProgramas(QWidget):
         self.tabla.setRowCount(len(filas))
 
         for r, (program_id, program_path, robot, conveyor_start, conveyor_end) in enumerate(filas):
-            self.tabla.setRowHeight(r, FONT_SIZE*2+10)
+            self.tabla.setRowHeight(r, FONT_SIZE * 2 + 10)
             id_item = QTableWidgetItem(str(program_id))
             path_item = QTableWidgetItem(str(program_path))
             robot_item = QTableWidgetItem(str(robot))
@@ -143,19 +164,19 @@ class VentanaProgramas(QWidget):
             lay_d.addWidget(btn_delete)
             self.tabla.setCellWidget(r, 6, cell_delete)
 
-        self.tabla.show()  
+        self.tabla.show()
 
     def addProgram(self):
         pid = "000"
         program_path = "ADD PATH"
         robot = "1"
-        dialogo = self.tableInputDialog(pid, program_path, robot)
+        dialogo = tableInputDialog(pid, program_path, robot)
         dialogo.exec()
         self.cargar_datos()
 
     def editProgram(self, program_id):
         filas = programs_repo.get_basic(program_id)
-        dialogo = self.tableInputDialog(filas[0][0], filas[0][1], filas[0][2])
+        dialogo = tableInputDialog(filas[0][0], filas[0][1], filas[0][2])
         dialogo.exec()
         self.cargar_datos()
 
@@ -167,149 +188,117 @@ class VentanaProgramas(QWidget):
             programs_repo.delete(program_id)
             self.cargar_datos()
 
-    # tableInputDialog y SubVentanaProgramas sin cambios...
 
-    class tableInputDialog(QDialog):
-        def __init__(self, program_id, program_path, robot):
-            super().__init__()
-            self.layout = QGridLayout()
-            self.setWindowTitle("Data Table")
-            #self.setGeometry(100, 100, 500, 150) # (x, y, width, height)
+class tableInputDialog(QDialog):
+    def __init__(self, program_id, program_path, robot):
+        super().__init__()
+        self.layout = QGridLayout()
+        self.setWindowTitle("Data Table")
+        # self.setGeometry(100, 100, 500, 150)  # (x, y, width, height)
 
-            # Create the table widget
-            self.tableWidget = QTableWidget()
-            self.tableWidget.setRowCount(1)
-            self.tableWidget.setColumnCount(3)
-            
-            labels = [
-                "PROGRAM", "ROBOT", "PATH"
-            ]
-            i = 1
-            for label in labels:
-                self.layout.addWidget(QLabel(label), 1, i)
-                i = i + 1
-            self.programWidget = QLineEdit(str(program_id))
-            self.layout.addWidget(self.programWidget, 2, 1)
-            self.comboWidget = QComboBox()
-            self.comboWidget.addItems(["1", "2"])
-            self.comboWidget.currentTextChanged.connect(self.downloadFiles)
-            self.comboWidget.setCurrentIndex(0) if robot=="1" else self.comboWidget.setCurrentIndex(1)
-            self.layout.addWidget(self.comboWidget, 2, 2)
-            #self.pathWidget = QPushButton(program_path)
-            self.pathWidget = QComboBox()
-            files = self.downloadFiles()
-            if program_path != "ADD PATH":
-                for r, (file) in enumerate(files):
-                    if file == program_path:
-                        self.pathWidget.setCurrentIndex(r)
-            #self.pathWidget.clicked.connect(self.openFiles)
-            self.layout.addWidget(self.pathWidget, 2, 3)        
-            # Create a button box for standard OK/Cancel buttons
-            self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-            self.buttonBox.accepted.connect(lambda id=program_id: self.update(id))
-            self.buttonBox.rejected.connect(self.close)
+        self._worker = None
+        self._pending_program_path = program_path
 
-            # Set up the layout
-            #self.layout.addWidget(self.tableWidget)
-            self.layout.addWidget(self.buttonBox, 3, 2, 1, 2)
-            self.setLayout(self.layout)
-            #self.tableWidget.resizeColumnsToContents()
+        # Create the table widget
+        self.tableWidget = QTableWidget()
+        self.tableWidget.setRowCount(1)
+        self.tableWidget.setColumnCount(3)
 
-        def update(self, program_id):
-            new_program_id = self.programWidget.text()
-            robot_num = self.comboWidget.currentText()
-            path = self.pathWidget.currentText()
-            if len(self.programWidget.text()) != 3:
-                QMessageBox.warning(self, "ERROR", "THE ID HAS TO BE 3 DIGITS")
-                return
-            # if not os.path.exists(self.pathWidget.text()):
-            #     QMessageBox.warning(self, "ERROR", "THE PATH HAS TO BE A VALID DIRECORY")
-            #     return
-            try:
-                if program_id == "000":
-                    programs_repo.insert(new_program_id, path, robot_num)
-                else:
-                    programs_repo.update_basic(new_program_id, path, robot_num, program_id)
+        labels = ["PROGRAM", "ROBOT", "PATH"]
+        i = 1
+        for label in labels:
+            self.layout.addWidget(QLabel(label), 1, i)
+            i += 1
 
-                self.close()
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"No se pudo asignar el programa: {e}")
-        def verification(self):
-            #TODO VERIFICATION FOR REPEATED IDS
-            program_id = self.programWidget.text()
-            robot_num = self.comboWidget.currentText()
-            path = self.pathWidget.text()
-            # if len(self.programWidget.text()) != 3:
-            #     QMessageBox.warning(self, "ERROR", "THE ID HAS TO BE 3 DIGITS")
-            #     return
-            if not os.path.exists(self.pathWidget.text()):
-                QMessageBox.warning(self, "ERROR", "THE PATH HAS TO BE A VALID DIRECORY")
-                return
-            try:
-                programs_repo.insert(program_id, path, robot_num)
-                self.close()
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"No se pudo asignar el programa: {e}")
+        # Build RobotLoader instances for both robots up front, so
+        # downloadFiles() can just reuse them instead of opening a
+        # raw SSH/SFTP connection itself.
+        ip1, ip2 = settings.robot_ips()
+        self.robots = [
+            RobotLoader("ROBOT 1", ip1, settings.ssh_user, settings.ssh_password, settings.program_dir),
+            RobotLoader("ROBOT 2", ip2, settings.ssh_user, settings.ssh_password, settings.program_dir)
+        ]
 
-        def openFiles(self):
-            ruta, _ = QFileDialog.getOpenFileName(
-                self,
-                "Selecciona archivo .ngc",
-                COMPARTIDA_INICIAL
-                #"NGC files (*.ngc);;All files (*)"
-            )
-            file_path = QFileDialog.getOpenFileName(None, "Open Remote File", "/mnt/remote_data")
-            print(file_path)
-            self.pathWidget.setText(str(ruta))
-            if not ruta:
-                return
-            return ruta
-        def str2Time(self, tiempo: str):
-            hora = tiempo[0] + tiempo[1]
-            minuto = tiempo[3] + tiempo[4]
-            hora = int(hora)
-            minuto = int(minuto)
-            return hora, minuto
-        def verifyTimeFormat(self, tiempo:str):
-            isTime = True
-            if len(tiempo) != 5:
-                isTime = False
-            elif not tiempo[0:1].isdigit():
-                isTime = False
-            elif not tiempo[3:4].isdigit():
-                isTime = False
-            return isTime
-        def downloadFiles(self):
-            files = []
-            try:
-                client = paramiko.SSHClient()
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                robot_num = self.comboWidget.currentText()
-                if robot_num == "1":
-                    currentIp = R1_IP
-                else:
-                    currentIp = R2_IP
-                client.connect(currentIp, port, username, password)
-                sftp_client = client.open_sftp()
-                #print(f"Listing files in {COMPARTIDA_INICIAL}:")
-                for entry in sftp_client.listdir(COMPARTIDA_INICIAL):
-                    #print(entry)
-                    if entry[1:4].isnumeric():
-                        files.append(entry)
-                sftp_client.close()
-                client.close()
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                files.append("Unconnected")
-            self.pathWidget.clear()
-            files = sorted(files)
+        self.programWidget = QLineEdit(str(program_id))
+        self.layout.addWidget(self.programWidget, 2, 1)
+
+        self.comboWidget = QComboBox()
+        self.comboWidget.addItems(["1", "2"])
+        self.comboWidget.setCurrentIndex(0) if robot == "1" else self.comboWidget.setCurrentIndex(1)
+        self.comboWidget.currentTextChanged.connect(self.downloadFiles)
+        self.layout.addWidget(self.comboWidget, 2, 2)
+
+        self.pathWidget = QComboBox()
+        self.layout.addWidget(self.pathWidget, 2, 3)
+
+        # primera carga (ya no bloquea la UI)
+        self.downloadFiles()
+
+        # Create a button box for standard OK/Cancel buttons
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(lambda id=program_id: self.update(id))
+        self.buttonBox.rejected.connect(self.close)
+
+        # Set up the layout
+        self.layout.addWidget(self.buttonBox, 3, 2, 1, 2)
+        self.setLayout(self.layout)
+
+    def update(self, program_id):
+        new_program_id = self.programWidget.text()
+        robot_num = self.comboWidget.currentText()
+        path = self.pathWidget.currentText()
+        if len(self.programWidget.text()) != 3:
+            QMessageBox.warning(self, "ERROR", "THE ID HAS TO BE 3 DIGITS")
+            return
+        # if not os.path.exists(self.pathWidget.text()):
+        #     QMessageBox.warning(self, "ERROR", "THE PATH HAS TO BE A VALID DIRECORY")
+        #     return
+        try:
+            if program_id == "000":
+                programs_repo.insert(new_program_id, path, robot_num)
+            else:
+                programs_repo.update_basic(new_program_id, path, robot_num, program_id)
+
+            self.close()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo asignar el programa: {e}")
+
+    def downloadFiles(self):
+        """Lanza la carga de programas .NGC del robot seleccionado en un
+        hilo aparte (ProgramLoaderWorker), para no congelar la UI mientras
+        se conecta por SSH/SFTP."""
+        # Si había un worker corriendo, lo detenemos antes de lanzar uno nuevo
+        if self._worker is not None and self._worker.isRunning():
+            self._worker.finished.disconnect()
+            self._worker.quit()
+            self._worker.wait()
+
+        self.pathWidget.clear()
+        self.pathWidget.addItem("Cargando...")
+        self.pathWidget.setEnabled(False)
+
+        robot_num = self.comboWidget.currentText()
+        robot = self.robots[0] if robot_num == "1" else self.robots[1]
+
+        self._worker = ProgramLoaderWorker(robot)
+        self._worker.finished.connect(self._on_files_loaded)
+        self._worker.start()
+
+    def _on_files_loaded(self, files):
+        """Se ejecuta en el hilo principal cuando el worker termina de
+        listar los programas; acá sí es seguro tocar los widgets."""
+        self.pathWidget.setEnabled(True)
+        self.pathWidget.clear()
+        for f in files:
+            self.pathWidget.addItem(f)
+
+        if self._pending_program_path and self._pending_program_path != "ADD PATH":
+            idx = self.pathWidget.findText(self._pending_program_path)
+            if idx >= 0:
+                self.pathWidget.setCurrentIndex(idx)
+            self._pending_program_path = None
+        elif self.pathWidget.count() > 0:
             self.pathWidget.setCurrentIndex(0)
-            for file in files:
-                self.pathWidget.addItem(file)
-            return files
-
-
-
 
 
 class SubVentanaProgramas(QWidget):
@@ -363,4 +352,3 @@ class SubVentanaProgramas(QWidget):
         app.setProperty('ventana_secundaria', self.win)
         self.win.destroyed.connect(lambda: app.setProperty('ventana_secundaria', None))
         self.win.show()
-

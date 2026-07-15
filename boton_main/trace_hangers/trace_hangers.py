@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QHBoxLayout, QScrollArea, QMainWindow, QSizePolicy, QRadioButton, QButtonGroup
+    QHeaderView, QHBoxLayout, QScrollArea, QMainWindow, QSizePolicy, QRadioButton, QButtonGroup, QMessageBox
 )
 
 from PyQt5.QtGui import QFont
@@ -231,7 +231,7 @@ class TraceHangersWindow(QMainWindow):
 
         layout.addWidget(self.recordButton)
         layout.addWidget(stopBtn)
-        layout.addWidget(kill_thread_btn)
+        # layout.addWidget(kill_thread_btn)
 
 
         self.update_conn_signal.connect(self.updateConn)
@@ -460,20 +460,30 @@ class TraceHangersWindow(QMainWindow):
     def startCycle(self,button: QPushButton):
         #TODO: SIMPLIFY SIGNALS
         #Inician los coordinadores
-        self.isListening = True
-        if self.getReadyState(1):
-            self.startRobot1()
-        self.stopProcessing = False
-        time.sleep(1.0)
-        if self.getReadyState(2):
-            self.startRobot2()
-            button.setEnabled(False)
-        else:
-            print("ROBOT 2 NO PASO")
+        is_admin_mode_ready_in_robot1: bool = self.robot1Coordinator.robot1.reader_values[0] and self.robot1Coordinator.robot2.reader_values[0]
 
-        self.startTimer()
-        self.ledR1Started.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
-        self.ledR2Stopped.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
+        if not is_admin_mode_ready_in_robot1:
+            print(f"NOPE {is_admin_mode_ready_in_robot1}")
+            QMessageBox.warning(None, "ACTION NOT POSSIBLE", "BOTH ROBOTS NEED TO BE IN ADMINISTRATOR MODE")
+
+        else:
+            print(f"YES {is_admin_mode_ready_in_robot1}")
+            #QMessageBox.warning(None, "hola", "saludos")
+
+            self.isListening = True
+            if self.getReadyState(1):
+                self.startRobot1()
+            self.stopProcessing = False
+            time.sleep(1.0)
+            if self.getReadyState(2):
+                self.startRobot2()
+                button.setEnabled(False)
+            else:
+                print("ROBOT 2 NO PASO")
+
+            self.startTimer()
+            self.ledR1Started.setStyleSheet(f"color:green; font-size:{FONT_SIZE+4}px;")
+            self.ledR2Stopped.setStyleSheet(f"color:gray; font-size:{FONT_SIZE+4}px;")
 
     def getReadyState(self, robotNum):
         robot = self.robot1 if robotNum == 1 else self.robot2

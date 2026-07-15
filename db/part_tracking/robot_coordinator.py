@@ -1,4 +1,5 @@
 from PyQt5.QtCore import QObject, pyqtSignal,  pyqtSignal as Signal, pyqtSlot as Slot
+from PyQt5.QtWidgets import QMessageBox
 from db.part_tracking.part  import Part
 from db.part_tracking.program  import Program
 from db.part_tracking.parts_timer import PartsTimer
@@ -29,6 +30,7 @@ class RobotCoordinator(QObject):
     noPart = pyqtSignal(int)
     alarmedPart = pyqtSignal(Part, Program)
 
+    starting_step = 0
 
     def __init__(self, queueManager:ProgramQueueManager, timer:PartsTimer, robotNum:int, robot1:Robot, loader1:RobotLoader, robot2:Robot, loader2:RobotLoader, dc:DualConsole):
         super().__init__()
@@ -50,7 +52,7 @@ class RobotCoordinator(QObject):
         self.currentPartIsDone = 0
         self.lastFinishedProgram = None
         self.stopProcessing = False
-    
+    #DAFMEXGuestBlock$$
     def runProgramToCompletion(self, part:Part):
         program = part.getCurrentProgram()
         program.current_hanger = copy.deepcopy(program.hanger_num)
@@ -181,6 +183,8 @@ class RobotCoordinator(QObject):
             return True
         else:
              self.dc.print(f"R{self.robotNum}: NO CONECTADO", self.robotNum)
+
+
     def sendOutput(self, conveyor, hanger):
 
         if conveyor in ["A", "B"]:
@@ -206,6 +210,7 @@ class RobotCoordinator(QObject):
         if self.checkForAlarm():
             return 
         self.currentPart = self.queueManager.getNextPart(self.robotNum)
+
         if self.currentPart != None:
             if self.currentPart.getCurrentProgram().state != "WAITING":
                 self.currentPart.getCurrentProgram().current_hanger = copy.deepcopy(self.currentPart.getCurrentProgram().hanger_num)
@@ -270,6 +275,18 @@ class RobotCoordinator(QObject):
             time.sleep(10)
     @Slot()
     def startCycle(self):
+        admin_ready_check: bool = self.robot1.reader_values[0]
+
+        #QMessageBox.warning(None, "hola", "saludos")
+
+
+        # if admin_ready_check:
+        #     print(f"YES {admin_ready_check}")
+        #     QMessageBox.warning(None, "hola", "saludos")
+
+        # else:
+        #     print(f"NOPE {admin_ready_check}")
+
         try:
             while not self.fullStop:
                 if not self.stopProcessing:

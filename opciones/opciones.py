@@ -273,6 +273,7 @@ class ProgramWindow(QWidget):
             cTod = ["361"]
             robot.connect()
             programs = robot.list_programs()
+            print(f' LOS PROGRAMAS XD {programs}')
             list_widget.clear()
             if programs:
                 list_widget.addItems(programs)

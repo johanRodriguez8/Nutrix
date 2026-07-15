@@ -1,0 +1,5 @@
+modificar el fujo del trace hanger para que se pueda trabajar una pieza desde cualquier conveyor, esto respetando
+los steps de la secuencia. Por ejemplo, si se coloca una parte en el conveyor C, la pieza empezara la sequence en el primer step correspondiente a 
+ese conveyor.
+
+Se debe poder seleccionar el step en el que va a iniciar una pieza?   

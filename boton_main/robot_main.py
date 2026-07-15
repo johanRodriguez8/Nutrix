@@ -296,6 +296,7 @@ class MainRobotWindow(QWidget):
         if robotNum == 1:
             self.connectToRobot(self.robot1)
             self.robot1.start_connection_loop()
+            self.robot1.reader_values[0]
             self.connectToLoader(self.robot1Loader, 0)
         else:
             self.connectToRobot(self.robot2)
