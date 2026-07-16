@@ -167,16 +167,13 @@ class VentanaProgramas(QWidget):
         self.tabla.show()
 
     def addProgram(self):
-        pid = "000"
-        program_path = "ADD PATH"
-        robot = "1"
-        dialogo = tableInputDialog(pid, program_path, robot)
+        dialogo = tableInputDialog("000", "ADD PATH", "1", None, None)
         dialogo.exec()
         self.cargar_datos()
 
     def editProgram(self, program_id):
         filas = programs_repo.get_basic(program_id)
-        dialogo = tableInputDialog(filas[0][0], filas[0][1], filas[0][2])
+        dialogo = tableInputDialog(filas[0][0], filas[0][1], filas[0][2], filas[0][3], filas[0][4])
         dialogo.exec()
         self.cargar_datos()
 
@@ -189,109 +186,101 @@ class VentanaProgramas(QWidget):
             self.cargar_datos()
 
 
-class tableInputDialog(QDialog):
-    def __init__(self, program_id, program_path, robot):
-        super().__init__()
-        self.layout = QGridLayout()
-        self.setWindowTitle("Data Table")
-        # self.setGeometry(100, 100, 500, 150)  # (x, y, width, height)
 
+class tableInputDialog(QDialog):
+    def __init__(self, program_id, program_path, robot, conveyor_start, conveyor_end):
+        super().__init__()
         self._worker = None
         self._pending_program_path = program_path
+        self.layout = QGridLayout()
+        self.setWindowTitle("Data Table")
 
-        # Create the table widget
-        self.tableWidget = QTableWidget()
-        self.tableWidget.setRowCount(1)
-        self.tableWidget.setColumnCount(3)
+        CONVEYORS = ["A", "B", "C", "D"]
 
-        labels = ["PROGRAM", "ROBOT", "PATH"]
-        i = 1
-        for label in labels:
-            self.layout.addWidget(QLabel(label), 1, i)
-            i += 1
-
-        # Build RobotLoader instances for both robots up front, so
-        # downloadFiles() can just reuse them instead of opening a
-        # raw SSH/SFTP connection itself.
         ip1, ip2 = settings.robot_ips()
         self.robots = [
             RobotLoader("ROBOT 1", ip1, settings.ssh_user, settings.ssh_password, settings.program_dir),
             RobotLoader("ROBOT 2", ip2, settings.ssh_user, settings.ssh_password, settings.program_dir)
         ]
 
+        labels = ["PROGRAM", "ROBOT", "PATH", "FROM CONVEYOR", "TO CONVEYOR"]
+        for i, label in enumerate(labels, start=1):
+            self.layout.addWidget(QLabel(label), 1, i)
+
         self.programWidget = QLineEdit(str(program_id))
         self.layout.addWidget(self.programWidget, 2, 1)
 
         self.comboWidget = QComboBox()
         self.comboWidget.addItems(["1", "2"])
-        self.comboWidget.setCurrentIndex(0) if robot == "1" else self.comboWidget.setCurrentIndex(1)
+        self.comboWidget.setCurrentIndex(0 if robot == "1" else 1)
         self.comboWidget.currentTextChanged.connect(self.downloadFiles)
         self.layout.addWidget(self.comboWidget, 2, 2)
 
         self.pathWidget = QComboBox()
+        self.pathWidget.setEnabled(False)
+        self.pathWidget.addItem("Loading...")
         self.layout.addWidget(self.pathWidget, 2, 3)
 
-        # primera carga (ya no bloquea la UI)
-        self.downloadFiles()
+        self.startConveyorWidget = QComboBox()
+        self.startConveyorWidget.addItems(CONVEYORS)
+        if conveyor_start in CONVEYORS:
+            self.startConveyorWidget.setCurrentIndex(CONVEYORS.index(conveyor_start))
+        self.layout.addWidget(self.startConveyorWidget, 2, 4)
 
-        # Create a button box for standard OK/Cancel buttons
+        self.endConveyorWidget = QComboBox()
+        self.endConveyorWidget.addItems(CONVEYORS)
+        if conveyor_end in CONVEYORS:
+            self.endConveyorWidget.setCurrentIndex(CONVEYORS.index(conveyor_end))
+        self.layout.addWidget(self.endConveyorWidget, 2, 5)
+
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect(lambda id=program_id: self.update(id))
         self.buttonBox.rejected.connect(self.close)
 
-        # Set up the layout
-        self.layout.addWidget(self.buttonBox, 3, 2, 1, 2)
+        self.layout.addWidget(self.buttonBox, 3, 3, 1, 3)
         self.setLayout(self.layout)
+        self.downloadFiles()
 
     def update(self, program_id):
         new_program_id = self.programWidget.text()
         robot_num = self.comboWidget.currentText()
         path = self.pathWidget.currentText()
-        if len(self.programWidget.text()) != 3:
+        conveyor_start = self.startConveyorWidget.currentText()
+        conveyor_end = self.endConveyorWidget.currentText()
+        if len(new_program_id) != 3:
             QMessageBox.warning(self, "ERROR", "THE ID HAS TO BE 3 DIGITS")
             return
-        # if not os.path.exists(self.pathWidget.text()):
-        #     QMessageBox.warning(self, "ERROR", "THE PATH HAS TO BE A VALID DIRECORY")
-        #     return
         try:
             if program_id == "000":
-                programs_repo.insert(new_program_id, path, robot_num)
+                programs_repo.upsert_full(new_program_id, path, robot_num, conveyor_start, conveyor_end)
             else:
-                programs_repo.update_basic(new_program_id, path, robot_num, program_id)
-
+                programs_repo.update_basic(new_program_id, path, robot_num, conveyor_start, conveyor_end, program_id)
             self.close()
         except Exception as e:
             QMessageBox.warning(self, "Error", f"No se pudo asignar el programa: {e}")
 
-    def downloadFiles(self):
-        """Lanza la carga de programas .NGC del robot seleccionado en un
-        hilo aparte (ProgramLoaderWorker), para no congelar la UI mientras
-        se conecta por SSH/SFTP."""
-        # Si había un worker corriendo, lo detenemos antes de lanzar uno nuevo
+    def downloadFiles(self, _=None):
+        if settings.simulation:
+            self._on_files_loaded(["SIM001", "SIM002", "SIM003"])
+            return
         if self._worker is not None and self._worker.isRunning():
             self._worker.finished.disconnect()
             self._worker.quit()
             self._worker.wait()
-
         self.pathWidget.clear()
-        self.pathWidget.addItem("Cargando...")
+        self.pathWidget.addItem("Loading...")
         self.pathWidget.setEnabled(False)
-
         robot_num = self.comboWidget.currentText()
         robot = self.robots[0] if robot_num == "1" else self.robots[1]
-
         self._worker = ProgramLoaderWorker(robot)
         self._worker.finished.connect(self._on_files_loaded)
         self._worker.start()
 
     def _on_files_loaded(self, files):
-        """Se ejecuta en el hilo principal cuando el worker termina de
-        listar los programas; acá sí es seguro tocar los widgets."""
         self.pathWidget.setEnabled(True)
         self.pathWidget.clear()
         for f in files:
             self.pathWidget.addItem(f)
-
         if self._pending_program_path and self._pending_program_path != "ADD PATH":
             idx = self.pathWidget.findText(self._pending_program_path)
             if idx >= 0:
@@ -299,6 +288,7 @@ class tableInputDialog(QDialog):
             self._pending_program_path = None
         elif self.pathWidget.count() > 0:
             self.pathWidget.setCurrentIndex(0)
+
 
 
 class SubVentanaProgramas(QWidget):

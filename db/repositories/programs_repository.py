@@ -21,7 +21,7 @@ class ProgramsRepository(BaseRepository):
 
     def get_basic(self, program_id):
         return self._db.query(
-            "SELECT program_id, path, robot_num FROM programs WHERE program_id=?",
+            "SELECT program_id, path, robot_num, conveyor_start, conveyor_end FROM programs WHERE program_id=?",
             (program_id,),
         )
 
@@ -41,10 +41,10 @@ class ProgramsRepository(BaseRepository):
             (program_id, path, robot_num),
         )
 
-    def update_basic(self, new_program_id, path, robot_num, program_id):
+    def update_basic(self, new_program_id, path, robot_num, conveyor_start, conveyor_end, program_id):
         self._db.execute(
-            "UPDATE programs SET program_id = ?, path = ?, robot_num = ? WHERE program_id=?",
-            (new_program_id, path, robot_num, program_id),
+            "UPDATE programs SET program_id = ?, path = ?, robot_num = ?, conveyor_start = ?, conveyor_end = ? WHERE program_id=?",
+            (new_program_id, path, robot_num, conveyor_start, conveyor_end, program_id),
         )
 
     def upsert_full(self, program_id, path, robot_num, conveyor_start, conveyor_end):
