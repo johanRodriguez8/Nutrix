@@ -70,7 +70,7 @@ class PartsTimer(QObject):
             self.updateTimer.emit(part.part_id, str(auxSecSince))
 
             if secLeft <= 0:
-                if program.state != "WAITING" or program.state != "DONE":
+                if program.state != "WAITING" and program.state != "DONE":
                     program.state = "WAITING"
                 program.time_deviation = str("-" + secondsToTime(secLeft*-1)) if secToMax > 0 else str(secondsToTime(secToMax*-1))
                 program.current_conveyor = program.conveyor_end

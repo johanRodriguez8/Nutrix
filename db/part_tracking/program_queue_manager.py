@@ -69,12 +69,12 @@ class ProgramQueueManager():
             self.dc.print(f"R{robotNum}: START PRIORITY QUEUE CHECK", robotNum)
             shortestDistPart = self.getShortestDistancePart(self.priorityQueue, robotNum)
             highestPriorityPart = shortestDistPart
-            if robotNum == 1:
-                self.currentPartRobot1 = highestPriorityPart
-            else:
-                self.currentPartRobot2 = highestPriorityPart
 
             if highestPriorityPart:
+                if robotNum == 1:
+                    self.currentPartRobot1 = highestPriorityPart
+                else:
+                    self.currentPartRobot2 = highestPriorityPart
                 self.priorityQueue.remove(highestPriorityPart)
                 return highestPriorityPart
 
@@ -86,11 +86,11 @@ class ProgramQueueManager():
             self.dc.print(f"R{robotNum}: START MAIN QUEUE CHECK", robotNum)
             shortestDistPart = self.getShortestDistancePart(self.mainQueue, robotNum)
             highestPriorityPart = shortestDistPart
-            if robotNum == 1:
-                self.currentPartRobot1 = highestPriorityPart
-            else:
-                self.currentPartRobot2 = highestPriorityPart
             if highestPriorityPart:
+                if robotNum == 1:
+                    self.currentPartRobot1 = highestPriorityPart
+                else:
+                    self.currentPartRobot2 = highestPriorityPart
                 self.mainQueue.remove(highestPriorityPart)
                 return highestPriorityPart
             else:

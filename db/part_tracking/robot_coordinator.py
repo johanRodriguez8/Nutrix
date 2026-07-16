@@ -326,8 +326,14 @@ class RobotCoordinator(QObject):
         else:
             self.dc.print(f"ERROR: HANGER START CONVEYOR NO VALIDO {program.conveyor_start}", self.robotNum)
             return
+        startTime = time.time()
         while not isOk:
-
+            if time.time() - startTime > TIME_OUT:
+                self.dc.print(f"R{self.robotNum}: TIMEOUT ESPERANDO HANGER {program.hanger_num} CONV {program.conveyor_start}", self.robotNum)
+                self.stopProcessing = True
+                return
+            if self.checkForAlarm(part):
+                return
             if program.conveyor_start == 'A':
                 isOk = self.robot1.convAOk
             elif program.conveyor_start == 'B':
@@ -336,11 +342,8 @@ class RobotCoordinator(QObject):
                 isOk = self.robot2.convCOk
             elif program.conveyor_start == 'D':
                 isOk = self.robot2.convDOk
-            # print("WAITING FOR CURRENT HANGER OK")
-            # print(f"Hanger num: {program.hanger_num} Conveyor:{program.conveyor_start} ROBOT NUM: {program.robot_num}")
-            # print(f"IS OK: {isOk}  ")
             time.sleep(WAIT_UPDATE_TIME)
-        if self.robotNum == robotToDebug: 
+        if self.robotNum == robotToDebug:
             self.dc.print(f"R{self.robotNum}: HANGER LISTO", self.robotNum)
 
 
@@ -349,42 +352,38 @@ class RobotCoordinator(QObject):
         if settings.simulation:
             return
         nextHanger, conveyorEnd = self.queueManager.getNextHangerConveyor(program)
-        # print(f"SENDING HANGER END: {nextHanger}{conveyorEnd}")
-        # print(f"COMPARISON HANGER END: {program.hanger_end}{program.conveyor_end}")
         self.sendOutput(conveyorEnd, nextHanger)
         time.sleep(1)
         if program.conveyor_end == 'A':
             isOk = self.robot1.convAOk
-            print(f"ENTRO CONV A isOk: {isOk}")
         elif program.conveyor_end == 'B':
             isOk = self.robot1.convBOk
-            print(f"ENTRO CONV B isOk: {isOk}")
         elif program.conveyor_end == 'C':
             isOk = self.robot2.convCOk
-            print(f"ENTRO CONV C isOk: {isOk}")
         elif program.conveyor_end == 'D':
             isOk = self.robot2.convDOk
-            print(f"ENTRO CONV D isOk: {isOk}")
         else:
             self.dc.print(f"ERROR HANGER END: CONVEYOR NO VALIDO {program.conveyor_end}", self.robotNum)
             return
+        startTime = time.time()
         while not isOk:
+            if time.time() - startTime > TIME_OUT:
+                self.dc.print(f"R{self.robotNum}: TIMEOUT ESPERANDO HANGER END {nextHanger} CONV {conveyorEnd}", self.robotNum)
+                self.stopProcessing = True
+                return
+            if self.checkForAlarm(part):
+                return
             if program.conveyor_end == 'A':
                 isOk = self.robot1.convAOk
-                print(f"ENTRO CONV A isOk: {isOk}")
             elif program.conveyor_end == 'B':
                 isOk = self.robot1.convBOk
-                print(f"ENTRO CONV B isOk: {isOk}")
             elif program.conveyor_end == 'C':
                 isOk = self.robot2.convCOk
-                print(f"ENTRO CONV C isOk: {isOk}")
             elif program.conveyor_end == 'D':
                 isOk = self.robot2.convDOk
             time.sleep(WAIT_UPDATE_TIME)
-        if self.robotNum == robotToDebug: 
-            self.dc.print(f"R{self.robotNum}: END HANGER LISTO", self.robotNum) 
-
-        #TODO: QUITAR TODOS LOS IF Y PRINT DE DEBUG
+        if self.robotNum == robotToDebug:
+            self.dc.print(f"R{self.robotNum}: END HANGER LISTO", self.robotNum)
 
     def checkForAlarm(self, currentPart=None):
         if settings.simulation:
