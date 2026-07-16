@@ -37,6 +37,7 @@ def create_part(part_id, hanger_num, conveyor, part_num, start_date, start_time,
     if parts_repo.exists(part_id):
         return load_part(part_id)
 
+    history_repo.delete(part_id)  # clear stale rows if this part_id was used before
     parts_repo.insert(part_id, hanger_num, conveyor, part_num,
                       start_date, start_time, 1, order_id)
     conveyors_repo.fill_with_order(part_id, part_num, order_id, hanger_num, conveyor)
