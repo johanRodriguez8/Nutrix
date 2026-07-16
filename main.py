@@ -7,6 +7,8 @@ from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 from inicio.login import VentanaLogin
 from inicio.splash import mostrar_splash
 from db.database import inicializar_base_datos
+from config import settings
+from ventana_principal.principal import VentanaPrincipal
 
 def manejar_excepcion(exctype, value, tb):
     print("❌ EXCEPCIÓN NO DETECTADA:")
@@ -42,10 +44,15 @@ def main():
         def lanzar_login():
             global ventana_login
             try:
-                print("📥 Mostrando ventana de login...")
-                ventana_login = VentanaLogin()
-                ventana_login.show()
-                print("✅ Login mostrado correctamente.")
+                if settings.simulation:
+                    print("🟡 Simulation mode — auto login as admin")
+                    ventana_principal = VentanaPrincipal("admin")
+                    ventana_principal.show()
+                else:
+                    print("📥 Mostrando ventana de login...")
+                    ventana_login = VentanaLogin()
+                    ventana_login.show()
+                    print("✅ Login mostrado correctamente.")
             except Exception as e:
                 print("❌ Error al lanzar login:")
                 traceback.print_exc()
