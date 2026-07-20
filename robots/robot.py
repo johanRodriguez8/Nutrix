@@ -286,7 +286,7 @@ class Robot:
                 self.convDOk = v[8]
                 self.takenConvC = v[9]
                 self.leftConvC = v[10]
-                self.takenConvD = v[11]
+                self.takenConvB = v[11]
                 self.leftConvD = v[12]
                 # self.fromConvB = v[9]
                 # self.fromConvC = v[10]

@@ -53,6 +53,8 @@ class RobotCoordinator(QObject):
         self.lastFinishedProgram = None
         self.stopProcessing = False
     #DAFMEXGuestBlock$$
+
+    
     def runProgramToCompletion(self, part:Part):
         program = part.getCurrentProgram()
         program.current_hanger = copy.deepcopy(program.hanger_num)
