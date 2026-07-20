@@ -460,14 +460,14 @@ class TraceHangersWindow(QMainWindow):
     def startCycle(self,button: QPushButton):
         #TODO: SIMPLIFY SIGNALS
         #Inician los coordinadores
-        is_admin_mode_ready_in_robot1: bool = self.robot1Coordinator.robot1.reader_values[0] and self.robot1Coordinator.robot2.reader_values[0]
+        is_admin_mode_ready_in_any_robot: bool = self.robot1Coordinator.robot1.reader_values[0] or self.robot1Coordinator.robot2.reader_values[0]
 
-        if not is_admin_mode_ready_in_robot1:
-            print(f"NOPE {is_admin_mode_ready_in_robot1}")
+        if not is_admin_mode_ready_in_any_robot:
+            print(f"NOPE {is_admin_mode_ready_in_any_robot}")
             QMessageBox.warning(None, "ACTION NOT POSSIBLE", "BOTH ROBOTS NEED TO BE IN ADMINISTRATOR MODE")
 
         else:
-            print(f"YES {is_admin_mode_ready_in_robot1}")
+            print(f"YES {is_admin_mode_ready_in_any_robot}")
             #QMessageBox.warning(None, "hola", "saludos")
 
             self.isListening = True

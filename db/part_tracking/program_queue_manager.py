@@ -15,7 +15,7 @@ class ProgramQueueManager():
         self.timer = timer
         self.robot1 = robot1
         self.robot2 = robot2
-        self.aToa = ["001","003", "021", "004", "024"]
+        self.aToa = ["001","003", "021", "004", "024","011"]
         self.aTob = ["081", "084"]
         self.bToc = ["211", "212", "216"]
         self.cToc = ["251", "252", "254"]
