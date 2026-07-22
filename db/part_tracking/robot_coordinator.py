@@ -356,16 +356,16 @@ class RobotCoordinator(QObject):
         nextHanger, conveyorEnd = self.queueManager.getNextHangerConveyor(program)
         self.sendOutput(conveyorEnd, nextHanger)
         time.sleep(1)
-        if program.conveyor_end == 'A':
+        if conveyorEnd == 'A':
             isOk = self.robot1.convAOk
-        elif program.conveyor_end == 'B':
+        elif conveyorEnd == 'B':
             isOk = self.robot1.convBOk
-        elif program.conveyor_end == 'C':
+        elif conveyorEnd == 'C':
             isOk = self.robot2.convCOk
-        elif program.conveyor_end == 'D':
+        elif conveyorEnd == 'D':
             isOk = self.robot2.convDOk
         else:
-            self.dc.print(f"ERROR HANGER END: CONVEYOR NO VALIDO {program.conveyor_end}", self.robotNum)
+            self.dc.print(f"ERROR HANGER END: CONVEYOR NO VALIDO {conveyorEnd}", self.robotNum)
             return
         startTime = time.time()
         while not isOk:
@@ -375,13 +375,13 @@ class RobotCoordinator(QObject):
                 return
             if self.checkForAlarm(part):
                 return
-            if program.conveyor_end == 'A':
+            if conveyorEnd == 'A':
                 isOk = self.robot1.convAOk
-            elif program.conveyor_end == 'B':
+            elif conveyorEnd == 'B':
                 isOk = self.robot1.convBOk
-            elif program.conveyor_end == 'C':
+            elif conveyorEnd == 'C':
                 isOk = self.robot2.convCOk
-            elif program.conveyor_end == 'D':
+            elif conveyorEnd == 'D':
                 isOk = self.robot2.convDOk
             time.sleep(WAIT_UPDATE_TIME)
         if self.robotNum == robotToDebug:

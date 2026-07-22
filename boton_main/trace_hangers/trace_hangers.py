@@ -327,11 +327,11 @@ class TraceHangersWindow(QMainWindow):
             run_time, hanger_num, conveyor_start, conveyor_end, time_deviation, hanger_end, current_hanger, current_conveyor, current_step = programs[0]
 
 
-            print(partNum)
+            #print(partNum)
 
 
             sequence = part_numbers_repo.get_sequence_id(part_num)
-            print(part_num)
+            #print(part_num)
 
             sequenceId = sequence[0][0] if sequence else ""
 
