@@ -183,6 +183,8 @@ class RobotCoordinator(QObject):
             part.putInConveyor(program.current_conveyor, program.current_hanger) 
             self.programEnded.emit(part, program)
             self.queueManager.isBTaken = 0 #Liberamos el conveyor B
+
+            
             #PRENDER CONFIRMACION LEFT/SENAL NUMERO 3
             self.robot.set_bool_output(3,True)
             time.sleep(8)

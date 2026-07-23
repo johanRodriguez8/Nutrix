@@ -216,8 +216,6 @@ class TraceHangersWindow(QMainWindow):
         self.ledR2Stopped.setAlignment(Qt.AlignLeft)
         hbox.addWidget(self.ledR2Stopped)
 
-        layout.addLayout(hbox)
-
         self.recordButton = QPushButton("START PROGRAM")
         self.recordButton.clicked.connect(
             lambda _:  self.startCycle(self.recordButton)

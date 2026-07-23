@@ -41,7 +41,6 @@ class SubMainWindow(QWidget):
     def onChange(self, i):
         if i == 1:
             self.tabTrace.timer.updateDryingParts()
-            self.tabTrace.loadLayout()
             if not self.timer_thread.isRunning():
                 self.timer_thread.start()
         elif i == 2:
