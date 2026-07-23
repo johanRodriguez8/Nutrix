@@ -128,6 +128,10 @@ class VentanaPrincipal(QMainWindow):
                 boton.clicked.connect(
                     lambda checked, t=texto, w=clase_widget, coor=robot1Coordinator: self.mostrar_ventana(t, w, [coor])
                 )
+            elif texto == "DEBUGGIN TOOLS":
+                boton.clicked.connect(
+                    lambda checked, t=texto, w=clase_widget, r1=robot1, r2=robot2: self.mostrar_ventana(t, w, [r1, r2])
+                )
             else:
                 boton.clicked.connect(
                     lambda checked, t=texto, w=clase_widget:

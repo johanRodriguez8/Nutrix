@@ -366,9 +366,6 @@ class Robot:
         0 is for conveyor A or C
         1 is for conveyor B or D
         """
-        #if not self.connected:
-        #    print("Robot not connected")
-        #    return
         try:
             with self.lock:
                 self.outputs[index].set_value(float(value))

@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QListWidget, QFrame
 )
 from PyQt5.QtCore import Qt
 import copy
@@ -34,8 +34,10 @@ TITULO_STYLE = f"font-size: {FONT_SIZE+10}px; font-weight:bold; color: #2596be;"
 
 # ================= VENTANA PRINCIPAL =================
 class SubVentanaDebug(QWidget):
-    def __init__(self):
+    def __init__(self, robot1=None, robot2=None):
         super().__init__()
+        self.robot1 = robot1
+        self.robot2 = robot2
         self.setWindowTitle("DEBUG TOOLS")
         self.showMaximized()
 
@@ -73,8 +75,56 @@ class SubVentanaDebug(QWidget):
         convABtn.clicked.connect(lambda _: self.fillConveyor("A"))
         layout.addWidget(convABtn)
 
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        layout.addWidget(separator)
+
+        outputsTitle = QLabel("TEST DE SALIDAS BOOLEANAS (set_bool_output)")
+        outputsTitle.setAlignment(Qt.AlignCenter)
+        outputsTitle.setStyleSheet(TITULO_STYLE)
+        layout.addWidget(outputsTitle)
+
+        for robot, robotName in [(self.robot1, "Robot1"), (self.robot2, "Robot2")]:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(f"{robotName} - Indice de output:"))
+
+            indexInput = QLineEdit("0")
+            indexInput.setFixedWidth(50)
+            row.addWidget(indexInput)
+
+            onBtn = QPushButton(f"{robotName} OUTPUT ON")
+            onBtn.setStyleSheet(BOTON_STYLE)
+            onBtn.clicked.connect(lambda _, r=robot, n=robotName, i=indexInput: self.testBoolOutput(r, n, i, True))
+            row.addWidget(onBtn)
+
+            offBtn = QPushButton(f"{robotName} OUTPUT OFF")
+            offBtn.setStyleSheet(BOTON_STYLE)
+            offBtn.clicked.connect(lambda _, r=robot, n=robotName, i=indexInput: self.testBoolOutput(r, n, i, False))
+            row.addWidget(offBtn)
+
+            layout.addLayout(row)
+
         layout.addStretch()
         self.setLayout(layout)
+
+    def testBoolOutput(self, robot, robotName, indexInput, value):
+        if robot is None:
+            QMessageBox.warning(self, "ERROR", f"{robotName} no fue provisto a la ventana de debug")
+            return
+        try:
+            index = int(indexInput.text())
+        except ValueError:
+            QMessageBox.warning(self, "ERROR", "El indice debe ser un numero entero")
+            return
+
+        robot.set_bool_output(index, value)
+
+        if robot.connected:
+            print(f"{robotName}: output {index} -> {value} enviado OK")
+        else:
+            msg = f"{robotName}: fallo al enviar output {index}. Revisar consola/conexion."
+            print(msg)
+            QMessageBox.warning(self, "ERROR DE COMUNICACION", msg)
 
     def restartParts(self):
         inits = {

@@ -144,9 +144,18 @@ class RobotCoordinator(QObject):
             part.updateAll()
             self.programRunning.emit(part, program)
             #reader_values 10 and 12 are for leftCOnv A, B in robot 1, C, D robot 2
-            left1 = self.robot.reader_values[10]
+            left1 = self.robot.reader_values[10] 
             left2 = self.robot.reader_values[12]
+            #PRENDER SENAL NUMERO 2 "CONF TAKEN"
+
+            
+            self.robot.set_bool_output(2,True)
+            time.sleep(8)
+            self.robot.set_bool_output(2,False)
+
+
             while not (left1 or left2):
+
                 # if self.robot.program_idle:
                 #     print(f"{self.robot.name} COORDINATOR: ALARMA PROGRAM IDLE")
                 #     program.state = 'READY'
@@ -174,6 +183,11 @@ class RobotCoordinator(QObject):
             part.putInConveyor(program.current_conveyor, program.current_hanger) 
             self.programEnded.emit(part, program)
             self.queueManager.isBTaken = 0 #Liberamos el conveyor B
+            #PRENDER CONFIRMACION LEFT/SENAL NUMERO 3
+            self.robot.set_bool_output(3,True)
+            time.sleep(8)
+            self.robot.set_bool_output(3,False)
+
             if robotNum == 1:
                 self.queueManager.currentPartRobot1 = None
             else:
@@ -182,9 +196,11 @@ class RobotCoordinator(QObject):
             #     self.timer.stopTimer()
             #     self.dc.print(f"R{self.robotNum}: Cycle stopped and thread finished", self.robotNum)
             #     self.fullStop = True
+
             return True
         else:
              self.dc.print(f"R{self.robotNum}: NO CONECTADO", self.robotNum)
+
 
 
     def sendOutput(self, conveyor, hanger):
@@ -292,6 +308,7 @@ class RobotCoordinator(QObject):
         try:
             while not self.fullStop:
                 if not self.stopProcessing:
+                    print("entro a processing step")
                     self.processingStep()
                 else:
                     time.sleep(5)
